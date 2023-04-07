@@ -1,0 +1,21 @@
+@import "base/base";
+
+.container{
+    width:100vw;
+    height:100vh;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    background: lightgray;
+
+    canvas{
+        width: auto;
+        height: auto;
+        max-width: 90vw;
+        max-height: 90vh;
+
+        background-color: white;
+    }
+}
