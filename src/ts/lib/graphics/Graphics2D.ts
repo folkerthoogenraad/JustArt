@@ -233,6 +233,10 @@ export class Graphics2D {
         }
     }
 
+    drawPaths(paths: Path2D[], fill: boolean){
+        paths.forEach(path => this.drawPath(path, fill));
+    }
+
     drawImage(image: UseableImage, x: number, y: number): void;
     drawImage(image: UseableImage, x: number, y: number, w: number, h: number): void;
     drawImage(image: UseableImage, x: number, y: number, w?: number, h?: number): void{

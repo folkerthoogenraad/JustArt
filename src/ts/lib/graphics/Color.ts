@@ -1,3 +1,5 @@
+import { MathHelper } from "expirimental/math/MathHelper";
+
 interface HSL {
     hue: number,
     saturation: number,
@@ -11,7 +13,7 @@ export class Color {
     readonly b: number;
     readonly a: number;
 
-    constructor(r: number, g: number, b: number, a: number) {
+    constructor(r: number, g: number, b: number, a: number = 1) {
         this.r = r;
         this.g = g;
         this.b = b;
@@ -51,9 +53,26 @@ export class Color {
     mul(other: Color) {
         return new Color(this.r * other.r, this.g * other.g, this.b * other.b, this.a);
     }
+    
+    map(f: (v: number) => number){
+        return new Color(f(this.r),f(this.g),f(this.b),this.a);
+    }
 
-    setGrayscale(v: number) {
-        return new Color(v, v, v, this.a);
+    toGrayscale(factor: number = 1) {
+        let v = this.getAvarage();
+
+        return Color.lerpNumbers(this, v, v, v, factor);
+    }
+    toColor(v: Color, factor: number){
+        let nr = this.r * v.r;
+        let ng = this.g * v.g;
+        let nb = this.b * v.b;
+        
+        return new Color(
+            MathHelper.lerp(this.r, nr, factor), 
+            MathHelper.lerp(this.g, ng, factor), 
+            MathHelper.lerp(this.b, nb, factor), 
+            this.a);
     }
     getAvarage() {
         return this.getWeightedAvarage(1, 1, 1);
@@ -71,16 +90,23 @@ export class Color {
     }
 
     static lerp(a: Color, b: Color, f: number) {
-        const ilerp = (a: number, b: number, f: number) => a + (b - a) * f;
         return new Color(
-            ilerp(a.r, b.r, f),
-            ilerp(a.g, b.g, f),
-            ilerp(a.b, b.b, f),
-            ilerp(a.a, b.a, f)
+            MathHelper.lerp(a.r, b.r, f),
+            MathHelper.lerp(a.g, b.g, f),
+            MathHelper.lerp(a.b, b.b, f),
+            MathHelper.lerp(a.a, b.a, f)
         );
     }
-    static grayscale(v: number) {
-        return new Color(v, v, v, 1);
+    static lerpNumbers(a: Color, r: number, g: number, b: number, f: number) {
+        return new Color(
+            MathHelper.lerp(a.r, r, f),
+            MathHelper.lerp(a.g, g, f),
+            MathHelper.lerp(a.b, b, f),
+            a.a
+        );
+    }
+    static grayscale(v: number, white: Color = Color.white) {
+        return new Color(v * white.r, v * white.g, v * white.b, 1);
     }
 
     // ======================================================= //
@@ -221,6 +247,10 @@ export class Color {
     }
 
     // Base colors
+    static readonly white = new Color(1, 1, 1, 1);
+    static readonly black = new Color(0, 0, 0, 1);
+    static readonly transparent = new Color(0, 0, 0, 0);
+
     static readonly red = new Color(1, 0, 0, 1);
     static readonly green = new Color(0, 1, 0, 1);
     static readonly blue = new Color(0, 0, 1, 1);
@@ -231,6 +261,10 @@ export class Color {
     static readonly magenta = new Color(1, 0, 1, 1);
 
     static readonly namedColors: { [key: string]: Color } = {
+        "white": this.white,
+        "black": this.black,
+        "transparent": this.transparent,
+
         "red": this.red,
         "green": this.green,
         "blue": this.blue,

@@ -1,393 +1,188 @@
-import { HandDrawnBrush } from "expirimental/brushes/HandDrawnBrush";
-import { PressurePath } from "expirimental/brushes/PressurePath";
 import { InterpolationCurves } from "expirimental/math/InterpolationCurve";
 import { MathHelper } from "expirimental/math/MathHelper";
 import { Vector2 } from "expirimental/math/Vector2";
+import { EnginePartGraphics } from "expirimental/paths/EnginePartGraphics";
+import { AxisConstraint2D } from "expirimental/xpbd/AxisConstraint2D";
+import { Constraint2D } from "expirimental/xpbd/Constraint2D";
+import { ConstraintAttachment2D } from "expirimental/xpbd/ConstraintAttachment2D";
+import { DistanceConstraint2D } from "expirimental/xpbd/DistanceConstraint2D";
+import { Rigidbody2D } from "expirimental/xpbd/Rigidbody2D";
+import { RigidbodyGraphic2D } from "expirimental/xpbd/graphics/RigidbodyGraphic2D";
 import { Color } from "lib/graphics/Color";
 import { Graphics2D } from "lib/graphics/Graphics2D";
 import { ImageLoader } from "lib/loader/ImageLoader";
+import { ImageGrid } from "lib/pixels/ImageGrid";
+import { Sampler } from "lib/pixels/Sampler";
 import { ViewportFit, ViewportSettings } from "lib/settings/ViewportSettings";
 
-async function imageSomething(){
-   let canvas = document.getElementById("canvas") as HTMLCanvasElement;
 
-   let image = await ImageLoader.getImageFromURL("https://images.unsplash.com/photo-1680466357571-e2a63c884093?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=774&q=80");
-   
-   let graphics = new Graphics2D(canvas);
-   graphics.setViewportSettings(new ViewportSettings(0, 0, image.width, image.height, ViewportFit.Cover));
+let graphics: Graphics2D;
 
-   graphics.translate(image.width / 2, image.height / 2);
-   graphics.rotateDeg(45);
-   graphics.translate(-image.width / 2, -image.height / 2);
+let bodyGraphics: RigidbodyGraphic2D[] = [];
+let bodies: Rigidbody2D[] = [];
+let constraints: Constraint2D[] = [];
 
-   graphics.push();
-
-   graphics.clip((path) => {
-      path.arc(graphics.viewportSettings.width / 2, graphics.viewportSettings.height / 2, 256, 0, Math.PI * 2, false);
-   });
-
-   graphics.drawImage(image, 0, 0);
-
-   graphics.pop();
-
-   canvas.addEventListener("click", ev => {
-      let p = graphics.canvasToViewport(ev.offsetX, ev.offsetY);
-
-      graphics.drawCircle(p.x!, p.y!, graphics.pointSize * 4, true);
-
-      console.log(p);
-   });
+function updateBody(body: Rigidbody2D, delta: number){
+    body.applyMotion(delta);
+    body.addImmediateCentralForce(0, 20, delta);
 }
 
-function signatureStuff(){
-   let canvas = document.getElementById("canvas") as HTMLCanvasElement;
-   
-   let graphics = new Graphics2D(canvas);
+function setupScene(){
+    let fixedLength = 0.6;
+    let headLength = 1.7;
+    // Create the bodies
+    let head = new Rigidbody2D();
+    head.position = new Vector2(0, -headLength);
+    
+    let arm = new Rigidbody2D();
+    arm.position = new Vector2(fixedLength, 0);
+    arm.velocity = new Vector2(0, 0);
+    
+    let fixedAttachment = new Rigidbody2D();
+    fixedAttachment.inverseMass = 0;
+    fixedAttachment.position = new Vector2(0, 0);
 
-   let paths: PressurePath[] = [];
-   let currentPath: PressurePath = new PressurePath();
+    bodies.push(head);
+    bodies.push(arm);
+    bodies.push(fixedAttachment);
 
-   let brush = new HandDrawnBrush();
-   brush.width = 100;
-   brush.subdivisionLength = 32;
-   brush.pressureCurve = n => n * n;
-   
-   let _requestedDraw: number|undefined = undefined;
-   let draw = () => {
-      _requestedDraw = undefined;
+    // Create the constraints
+    let armAttachmentFixed = new DistanceConstraint2D(new ConstraintAttachment2D(arm), new ConstraintAttachment2D(fixedAttachment), 1);
+    let headArmAttachment = new DistanceConstraint2D(new ConstraintAttachment2D(head), new ConstraintAttachment2D(arm), 1);
 
-      graphics.setup();
-   
-      graphics.setFillColor("#fff5dd");
-      graphics.drawRectangle(0, 0, canvas.width, canvas.height, true);
-      
-      graphics.setFillColor("#423627");
+    let headAxisConstraint = new AxisConstraint2D(new ConstraintAttachment2D(head), new Vector2(0, -2), new Vector2(0, 1));
 
-      paths.forEach(path => {
-         brush.drawPressurePath(graphics, path);
-      });
-      
-      brush.drawPressurePath(graphics, currentPath);
-   };
-   let requestDraw = () => {
-      if(_requestedDraw){
-         cancelAnimationFrame(_requestedDraw);
-      }
+    armAttachmentFixed.resetRestDistance();
+    headArmAttachment.resetRestDistance();
 
-      _requestedDraw = requestAnimationFrame(draw);
-   };
-   requestDraw();
+    constraints.push(armAttachmentFixed);
+    constraints.push(headArmAttachment);
+    constraints.push(headAxisConstraint);
 
-   let addPoint = (ev: MouseEvent) => {
-      let p = graphics.canvasToViewport(ev.offsetX, ev.offsetY);
-      currentPath.addPoint(new Vector2(p.x, p.y), runningPressure);
-      
-      requestDraw();
-   };
+    // Create the visuals
+    let engineGraphics = new EnginePartGraphics();
+    engineGraphics.lineWidth = graphics.pointSize * 10;
 
-   
+    let headGraphics = new RigidbodyGraphic2D(head, engineGraphics.createPiston(1, 0.8));
+    let armGraphics = new RigidbodyGraphic2D(arm, engineGraphics.createArm(headArmAttachment.restDistance));
+    let fixedGraphics = new RigidbodyGraphic2D(fixedAttachment, engineGraphics.createWeight(fixedLength));
 
-   // Convolution bby
-   let makeSmoothVersion = (path: PressurePath): PressurePath => {
-      if(path.points.length <= 0) return path;
+    armGraphics.alignWith = head;
+    fixedGraphics.alignWith = arm;
 
-      let outpath = new PressurePath();
-      
-      let weights: number[] = [];
-
-      for(let i = 0; i < 10; i++){
-         let z = (i / 10) * 4 - 2;
-
-         weights.push(Math.exp(-z * z));
-      }
-
-      // Content doesn't matter, just length
-      let x = [...weights];
-      let y = [...weights];
-      let p = [...weights];
-
-      for(let i = 0; i < path.points.length - weights.length; i++){
-         for(let j = 0; j < weights.length; j++){
-            x[j] = path.points[i + j].position.x;
-            y[j] = path.points[i + j].position.y;
-            p[j] = path.points[i + j].pressure;
-         }
-
-         outpath.addPoint(
-            new Vector2(
-               MathHelper.weightedAvarage(weights, x),
-               MathHelper.weightedAvarage(weights, y)
-            ),
-            MathHelper.weightedAvarage(weights, p),
-         );
-      }
-
-      return outpath;
-   };
-
-   let drawing = false;
-   let runningPressure = 1;
-   let runningVelocity = 0;
-
-   let previousTime = 0;
-   let previousX = 0;
-   let previousY = 0;
-
-   canvas.addEventListener("mousemove", ev => {
-      let now = window.performance.now();
-      
-      let dt = now - previousTime;
-      let dx = ev.offsetX - previousX;
-      let dy = ev.offsetY - previousY;
-      
-      // Rule of thumb
-      if(Vector2.fSquareLength(dx, dy) < brush.width / 2) return;
-      
-      let vx = dx / dt;
-      let vy = dy / dt;
-      
-      if(dt === 0){
-         vx = 0;
-         vy = 0;
-      }
-      
-      let velocity = Vector2.fLength(vx, vy);
-      
-      runningVelocity = MathHelper.lerp(runningVelocity, velocity, 1);
-      
-      let wantedPressure = 1 / (runningVelocity * 0.4 + 1);
-      // let wantedPressure = 1;
-      
-      runningPressure = MathHelper.lerp(runningPressure, wantedPressure, 1);
-      
-      previousTime = now;
-      previousX = ev.offsetX;
-      previousY = ev.offsetY;
-         
-      if(drawing){
-         addPoint(ev);
-      }
-   });
-   canvas.addEventListener("mousedown", ev => {
-      previousTime = window.performance.now();
-      previousX = ev.offsetX;
-      previousY = ev.offsetY;
-      addPoint(ev);
-
-      drawing = true;
-   });
-   canvas.addEventListener("mouseup", ev => {
-      previousTime = window.performance.now();
-      previousX = ev.offsetX;
-      previousY = ev.offsetY;
-
-      addPoint(ev);
-      drawing = false;
-
-      paths.push(makeSmoothVersion(currentPath));
-      // paths.push(currentPath);
-
-      currentPath = new PressurePath();
-   });
-   
-   window.addEventListener("keydown", ev => {
-      if(ev.key === "Enter"){
-         paths.push(currentPath);
-         currentPath = new PressurePath();
-      }
-   });
-
-   canvas.addEventListener("click", ev => {
-      let p = graphics.canvasToViewport(ev.offsetX, ev.offsetY);
-
-      // currentPath.addPoint(new Vector2(p.x, p.y), Math.random() * 0.5 + 0.5);
-      
-      requestDraw();
-   });
+    bodyGraphics.push(armGraphics);
+    bodyGraphics.push(fixedGraphics);
+    bodyGraphics.push(headGraphics);
 }
 
+function setupMouseControls(canvas: HTMLCanvasElement){
+    let selected: Rigidbody2D|undefined = undefined;
 
-function signatureStuff2(){
-   let canvas = document.getElementById("canvas") as HTMLCanvasElement;
-   
-   let graphics = new Graphics2D(canvas);
+    let offsetX = 0;
+    let offsetY = 0;
 
-   let backgroundColor = Color.parse("#fff5dd");
-   let foregroundColor = Color.parse("#423627");
+    let previousMouseX = 0;
+    let previousMouseY = 0;
 
-   let coolPath0: PressurePath = new PressurePath();
-   let coolPath1: PressurePath = new PressurePath();
-   let coolPath2: PressurePath = new PressurePath();
-   let coolPath3: PressurePath = new PressurePath();
-   let coolPath4: PressurePath = new PressurePath();
+    // Very hacky, should be solved with a nice constraint instead.
+    let select = (body?: Rigidbody2D) => {
+        selected = body;
+    }
+    
+    canvas.addEventListener("mousedown", (ev) => {
+        let p = graphics.canvasToViewport(ev.offsetX, ev.offsetY);
 
-   let currentPath: PressurePath = new PressurePath();
+        let distance = 0.4;
 
-   let brush = new HandDrawnBrush();
-   brush.width = 100;
-   brush.subdivisionLength = 32;
-   brush.pressureCurve = n => n * n;
-   
-   let _requestedDraw: number|undefined = undefined;
-   let draw = () => {
-      _requestedDraw = undefined;
+        bodies.forEach(body => {
+            let d = Vector2.fDistance(p.x, p.y, body.position.x, body.position.y);
 
-      graphics.setup();
-   
-      graphics.setFillColor(backgroundColor.toHexString());
-      graphics.drawRectangle(0, 0, canvas.width, canvas.height, true);
-      
-      graphics.setFillColor(Color.lerp(foregroundColor, backgroundColor, 1 - 0.125 * 0.25).toHexString());
-      brush.drawPressurePath(graphics, coolPath4);
-      graphics.setFillColor(Color.lerp(foregroundColor, backgroundColor, 1 - 0.125).toHexString());
-      brush.drawPressurePath(graphics, coolPath3);
-      graphics.setFillColor(Color.lerp(foregroundColor, backgroundColor, 1 - 0.25).toHexString());
-      brush.drawPressurePath(graphics, coolPath2);
-      graphics.setFillColor(Color.lerp(foregroundColor, backgroundColor, 1 - 0.5).toHexString());
-      brush.drawPressurePath(graphics, coolPath1);
-      graphics.setFillColor(Color.lerp(foregroundColor, backgroundColor, 0).toHexString());
-      brush.drawPressurePath(graphics, coolPath0);
-      
-      brush.drawPressurePath(graphics, currentPath);
-   };
-   let requestDraw = () => {
-      if(_requestedDraw){
-         cancelAnimationFrame(_requestedDraw);
-      }
+            if(d < distance){
+                distance = d;
+                select(body);
+                offsetX = body.position.x - p.x;
+                offsetY = body.position.y - p.y;
+            }
+        });
+        
+        previousMouseX = p.x;
+        previousMouseY = p.y;
+    });
+    
+    canvas.addEventListener("mousemove", (ev) => {
+        let p = graphics.canvasToViewport(ev.offsetX, ev.offsetY);
 
-      _requestedDraw = requestAnimationFrame(draw);
-   };
-   requestDraw();
+        if(selected !== undefined){
+            selected.position.apply(p.x - offsetX, p.y - offsetY);
+        }
+        
+        previousMouseX = p.x;
+        previousMouseY = p.y;
+    });
 
-   let addPoint = (ev: MouseEvent) => {
-      let p = graphics.canvasToViewport(ev.offsetX, ev.offsetY);
-      currentPath.addPoint(new Vector2(p.x, p.y), runningPressure);
-      
-      requestDraw();
-   };
-
-   
-
-   // Convolution bby
-   let makeSmoothVersion = (path: PressurePath): PressurePath => {
-      if(path.points.length <= 0) return path;
-
-      let outpath = new PressurePath();
-      
-      let weights: number[] = [];
-
-      for(let i = 0; i < 100; i++){
-         let z = (i / 10) * 4 - 2;
-
-         weights.push(Math.exp(-z * z));
-      }
-
-      // Content doesn't matter, just length
-      let x = [...weights];
-      let y = [...weights];
-      let p = [...weights];
-
-      for(let i = 0; i < path.points.length - weights.length; i++){
-         for(let j = 0; j < weights.length; j++){
-            x[j] = path.points[i + j].position.x;
-            y[j] = path.points[i + j].position.y;
-            p[j] = path.points[i + j].pressure;
-         }
-
-         outpath.addPoint(
-            new Vector2(
-               MathHelper.weightedAvarage(weights, x),
-               MathHelper.weightedAvarage(weights, y)
-            ),
-            MathHelper.weightedAvarage(weights, p),
-         );
-      }
-
-      return outpath;
-   };
-
-   let drawing = false;
-   let runningPressure = 1;
-   let runningVelocity = 0;
-
-   let previousTime = 0;
-   let previousX = 0;
-   let previousY = 0;
-
-   canvas.addEventListener("mousemove", ev => {
-      let now = window.performance.now();
-      
-      let dt = now - previousTime;
-      let dx = ev.offsetX - previousX;
-      let dy = ev.offsetY - previousY;
-      
-      // Rule of thumb
-      if(Vector2.fSquareLength(dx, dy) < brush.width / 2) return;
-      
-      let vx = dx / dt;
-      let vy = dy / dt;
-      
-      if(dt === 0){
-         vx = 0;
-         vy = 0;
-      }
-      
-      let velocity = Vector2.fLength(vx, vy);
-      
-      runningVelocity = MathHelper.lerp(runningVelocity, velocity, 1);
-      
-      let wantedPressure = 1 / (runningVelocity * 0.4 + 1);
-      // let wantedPressure = 1;
-      
-      runningPressure = MathHelper.lerp(runningPressure, wantedPressure, 1);
-      
-      previousTime = now;
-      previousX = ev.offsetX;
-      previousY = ev.offsetY;
-         
-      if(drawing){
-         addPoint(ev);
-      }
-   });
-   canvas.addEventListener("mousedown", ev => {
-      previousTime = window.performance.now();
-      previousX = ev.offsetX;
-      previousY = ev.offsetY;
-      addPoint(ev);
-
-      drawing = true;
-   });
-   canvas.addEventListener("mouseup", ev => {
-      previousTime = window.performance.now();
-      previousX = ev.offsetX;
-      previousY = ev.offsetY;
-
-      addPoint(ev);
-      drawing = false;
-
-
-      let makeSmoothWithOffset = (offset: number, path: PressurePath) => {
-         let newPath = new PressurePath();
-
-         newPath.points = path.points.map(point => {
-            return {position: point.position.clone().add(new Vector2(offset, offset)), pressure: point.pressure}
-         });
-
-         return makeSmoothVersion(newPath);
-      }
-
-      let smooth = makeSmoothVersion(currentPath);
-
-      coolPath0 = smooth;
-      coolPath1 = makeSmoothWithOffset(10, coolPath0);
-      coolPath2 = makeSmoothWithOffset(20, coolPath1);
-      coolPath3 = makeSmoothWithOffset(30, coolPath2);
-      coolPath4 = makeSmoothWithOffset(40, coolPath3);
-
-      currentPath = new PressurePath();
-   });
+    canvas.addEventListener("mouseup", ev => {
+        select(undefined);
+    });
+    
 }
 
 document.addEventListener("DOMContentLoaded", async ()=>{
-   signatureStuff2();
-});
+    let canvas = document.getElementById("canvas") as HTMLCanvasElement;
+    graphics = new Graphics2D(canvas);
+    graphics.context.miterLimit = 10; // Kinda stupid but works :)
+    graphics.setViewportSettings(new ViewportSettings(-3, -3, 3, 3, ViewportFit.Contain));
+
+    let lineWidth = 4;
+
+    graphics.setLineWidthInPoints(lineWidth);
+
+    setupScene();
+    setupMouseControls(canvas);
+
+    let update = (delta: number) => {
+        bodies.forEach(body => updateBody(body, delta));
+        constraints.forEach(constraint => constraint.init(delta));
+        constraints.forEach(constraint => constraint.apply(delta));
+    };
+
+    let draw = () => {
+        graphics.setup();
+
+        graphics.setStrokeColor("white");
+        graphics.setLineWidthInPoints(10);
+
+        bodyGraphics.forEach(graphic => graphic.draw(graphics));
+
+        if (true) return;
+
+        graphics.setStrokeColor("red");
+        constraints.forEach(constraint => {
+            if(!(constraint instanceof DistanceConstraint2D)) return;
+
+            graphics.drawLine(constraint.from.body.position.x, constraint.from.body.position.y, constraint.to.body.position.x, constraint.to.body.position.y);
+        });
+        bodies.forEach(body => {
+            graphics.drawCircle(body.position.x, body.position.y, graphics.pointSize * lineWidth * 2, false);
+        });
+    }
+
+    let previousTime = window.performance.now();
+
+    let tick = () => {
+        let currentTime = window.performance.now();
+
+        let delta = (currentTime - previousTime) / 1000;
+
+        previousTime = currentTime;
+
+        let substeps = 1;
+        for(let i = 0; i < substeps; i++){
+            update(delta / substeps);
+        }
+        draw();
+        requestAnimationFrame(tick);
+    }
+
+    requestAnimationFrame(tick);
+ });
+ 

@@ -64,6 +64,11 @@ export class Rigidbody2D {
         this.markBasisDirty();
     }
 
+    applyMotion(delta: number){
+        this.position.x += this.velocity.x * delta;
+        this.position.y += this.velocity.y * delta;
+    }
+
     rotate(angle: number){
         this.rotation += angle;
     }

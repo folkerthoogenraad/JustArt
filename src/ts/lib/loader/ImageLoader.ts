@@ -24,6 +24,16 @@ export class ImageLoader {
         return this.getImageFromURL(canvas.toDataURL());
     }
     
+    static imageToCanvas(image: UsableImage): HTMLCanvasElement {
+        let canvas = document.createElement("canvas");
+        canvas.width = image.width;
+        canvas.height = image.height;
+    
+        let context = canvas.getContext("2d")!;
+        context.drawImage(image, 0, 0);
+        return canvas;
+    }
+    
     static getImageDataFromImage(image: UsableImage): ImageData {
         let canvas = document.createElement("canvas");
         canvas.width = image.width;
@@ -41,11 +51,13 @@ export class ImageLoader {
         return this.getImageFromURL(canvas.toDataURL());
     }
     
-    static getCanvasFromImageData(data: ImageData): HTMLCanvasElement {
-        let canvas = document.createElement('canvas');
-        canvas.width = data.width;
-        canvas.height = data.height;
-     
+    static getCanvasFromImageData(data: ImageData, canvas?: HTMLCanvasElement): HTMLCanvasElement {
+        if(canvas === undefined){
+            canvas = document.createElement('canvas');
+            canvas.width = data.width;
+            canvas.height = data.height;    
+        }
+
         let context = canvas.getContext('2d')!;
         context.putImageData(data, 0, 0);
 
@@ -81,16 +93,18 @@ export class ImageLoader {
         return image;
     }
 
-    static getImageDataFromImageGrid(image: ImageGrid<Color>): ImageData {
-        let data = new ImageData(image.width, image.height, {colorSpace: "srgb"});
+    static getImageDataFromImageGrid(image: ImageGrid<Color>, data?: ImageData): ImageData {
+        if(data === undefined){
+            data = new ImageData(image.width, image.height, {colorSpace: "srgb"});
+        }
     
         image.foreachPixel((color, x, y) => {
             let index = y * image.width * 4 + x * 4;
     
-            data.data[index + 0] = color.r * 255;
-            data.data[index + 1] = color.g * 255;
-            data.data[index + 2] = color.b * 255;
-            data.data[index + 3] = color.a * 255;
+            data!.data[index + 0] = color.r * 255;
+            data!.data[index + 1] = color.g * 255;
+            data!.data[index + 2] = color.b * 255;
+            data!.data[index + 3] = color.a * 255;
         });
     
         return data;

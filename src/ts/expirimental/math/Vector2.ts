@@ -108,7 +108,7 @@ export class Vector2 {
     }
 
     get angle() {
-        return Math.atan2(this.y, this.x);
+        return Vector2.fAngle(this.y, this.x);
     }
 
     distanceTo(other: Vector2) {
@@ -184,6 +184,9 @@ export class Vector2 {
     }
     static fSquareLength(x: number, y: number){
         return this.fDot(x, y, x, y);
+    }
+    static fAngle(x: number, y: number){
+        return Math.atan2(y, x);
     }
     static fLength(x: number, y: number){
         return Math.sqrt(this.fSquareLength(x, y));
