@@ -14,24 +14,36 @@ export class Vector2 {
 
         return this;
     }
+    addX(x: number) {this.x += x; return this; }
+    addY(y: number) {this.y += y; return this; }
+
     sub(other: Vector2) {
         this.x -= other.x;
         this.y -= other.y;
 
         return this;
     }
+    subX(x: number) {this.x -= x; return this; }
+    subY(y: number) {this.y -= y; return this; }
+    
     mul(other: Vector2) {
         this.x *= other.x;
         this.y *= other.y;
 
         return this;
     }
+    mulX(x: number) {this.x *= x; return this; }
+    mulY(y: number) {this.y *= y; return this; }
+
     div(other: Vector2) {
         this.x /= other.x;
         this.y /= other.y;
 
         return this;
     }
+    divX(x: number) {this.x /= x; return this; }
+    divY(y: number) {this.y /= y; return this; }
+    
     scale(scaler: number) {
         this.x *= scaler;
         this.y *= scaler;
