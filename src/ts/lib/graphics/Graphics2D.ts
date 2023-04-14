@@ -243,6 +243,13 @@ export class Graphics2D {
         this.context.drawImage(image, x, y, w ?? image.width, h ?? image.height);
     }
 
+    drawBackground(){
+        let f = this.canvasToViewport(0, 0);
+        let t = this.canvasToViewport(this.width, this.height);
+
+        this.drawRectangle(f.x, f.y, t.x - f.x, t.y - f.y, true);
+    }
+
     // ======================================================= //
     // Clipping
     // ======================================================= //

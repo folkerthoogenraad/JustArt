@@ -59,4 +59,18 @@ export class MathHelper {
     static clip(v: number): number{
         return this.clamp(v, 0, 1);
     }
+    static normalizeAngle(angle: number){
+        angle %= Math.PI * 2;
+
+        if(angle < 0){
+            angle += Math.PI * 2;
+        }
+
+        return angle;
+    }
+    static shortestAngle(from: number, to: number){
+        let diff = (to - from + Math.PI) % (Math.PI * 2) - Math.PI;
+        return diff < -Math.PI ? diff + Math.PI * 2 : diff;
+    
+    }
 }

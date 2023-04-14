@@ -1,3 +1,4 @@
+import { MathHelper } from "expirimental/math/MathHelper";
 import { Matrix2 } from "expirimental/math/Matrix2";
 import { Vector2 } from "expirimental/math/Vector2";
 
@@ -10,6 +11,9 @@ export class Rigidbody2D {
     velocity: Vector2;
     angularVelocity: number;
     
+    private _previousPosition: Vector2;
+    private _previousRotation: number;
+
     private _basisDirty: boolean = false;
     private _basisInverseDirty: boolean = false;
     private _basis: Matrix2;
@@ -19,7 +23,10 @@ export class Rigidbody2D {
 
     constructor(){
         this.position = new Vector2();
+
         this._rotation = 0;
+        this._previousPosition = this.position.clone();
+        this._previousRotation = this._rotation;
 
         this.velocity = new Vector2();
         this.angularVelocity = 0;
@@ -49,7 +56,7 @@ export class Rigidbody2D {
         }
         return this._basis;
     }
-    get basisInverse(): Matrix2{
+    get inverseBasis(): Matrix2{
         if(this._basisInverseDirty){
             this.syncBasisInverse();
         }
@@ -67,6 +74,23 @@ export class Rigidbody2D {
     applyMotion(delta: number){
         this.position.x += this.velocity.x * delta;
         this.position.y += this.velocity.y * delta;
+
+        this.rotation += this.angularVelocity * delta;
+    }
+
+    recalculateVelocity(delta: number){
+        this.velocity.x = Vector2.dx(this._previousPosition, this.position) / delta;
+        this.velocity.y = Vector2.dy(this._previousPosition, this.position) / delta;
+
+        this._rotation = MathHelper.normalizeAngle(this._rotation);
+        this._previousRotation = MathHelper.normalizeAngle(this._previousRotation);
+        
+        let angleDiff = MathHelper.shortestAngle(this._previousRotation, this._rotation);
+
+        this.angularVelocity = angleDiff / delta;
+        
+        this._previousPosition.set(this.position);
+        this._previousRotation = this._rotation;
     }
 
     rotate(angle: number){
@@ -74,9 +98,14 @@ export class Rigidbody2D {
     }
     translate(x: number, y: number){
         this.position.addX(x).addY(y);
+        this._previousPosition.addX(x).addY(y);
+    }
+    translateTo(x: number, y: number){
+        this.position.apply(x, y);
+        this._previousPosition.apply(x, y);
     }
 
-    addImmediateCentralForce(fx: number, fy: number, delta: number){
+    addImmediateForce(fx: number, fy: number, delta: number){
         // F = m * a
         // a = F / m
 
@@ -89,7 +118,7 @@ export class Rigidbody2D {
         this.position.x += ax * delta * delta;
         this.position.y += ay * delta * delta;
     }
-    addImmediateCentralImpulse(ix: number, iy: number, delta: number){
+    addImmediateImpulse(ix: number, iy: number, delta: number){
         let dx = ix * this.inverseMass;
         let dy = iy * this.inverseMass;
         this.position.x += dx;
@@ -97,6 +126,24 @@ export class Rigidbody2D {
 
         this.velocity.x += dx / delta;
         this.velocity.y += dy / delta;
+    }
+    
+    addImmediateImpulseAt(ix: number, iy: number, px: number, py: number, delta: number){
+        let dx = ix * this.inverseMass;
+        let dy = iy * this.inverseMass;
+
+        this.position.x += dx;
+        this.position.y += dy;
+
+        this.velocity.x += dx / delta;
+        this.velocity.y += dy / delta;
+
+        let angularImpulse = Vector2.fCross(ix, iy, px - this.position.x, py - this.position.y) * this.inverseInertia;
+
+        // console.log(Math.round(angularImpulse * 10) / 10);
+
+        this.rotation -= angularImpulse;
+        this.angularVelocity -= angularImpulse / delta;
     }
 
     private markBasisDirty(){
@@ -110,7 +157,8 @@ export class Rigidbody2D {
     }
 
     private syncBasisInverse(){
-        this._basisInverse.setAs(this.basis).inverse();
+        // this._basisInverse.setAs(this.basis).inverse();
+        this._basisInverse.setAsRotation(-this.rotation);
         this._basisInverseDirty = false;
     }
 }

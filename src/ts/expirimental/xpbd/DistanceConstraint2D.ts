@@ -13,13 +13,18 @@ export class DistanceConstraint2D extends Constraint2D {
 
     lambda: number = 0;
 
-    constructor(from: ConstraintAttachment2D, to: ConstraintAttachment2D, distance: number, compliance: number = 0) {
+    constructor(from: ConstraintAttachment2D, to: ConstraintAttachment2D, distance?: number, compliance: number = 0) {
         super();
 
         this.from = from;
         this.to = to;
 
-        this.restDistance = distance;
+        if(distance !== undefined){
+            this.restDistance = distance;
+        }
+        else{
+            this.restDistance = this.calculateDistance();
+        }
         this.compliance = compliance;
     }
 
@@ -28,30 +33,45 @@ export class DistanceConstraint2D extends Constraint2D {
     }
 
     calculateDistance(){
-        // This doesn't take relative position and orientation into account currently.
-        let dx = this.to.body.position.x - this.from.body.position.x;
-        let dy = this.to.body.position.y - this.from.body.position.y;
+        let fromGlobalAttachmentPosition = this.from.getGlobalAttachmentPosition(this._fromGlobalAttachmentPosition);
+        let toGlobalAttachmentPosition = this.to.getGlobalAttachmentPosition(this._toGlobalAttachmentPosition);
+        
+        let direction = Vector2.directionOut(fromGlobalAttachmentPosition, toGlobalAttachmentPosition, this._direction);
+        let distance = direction.length;
 
-        return Vector2.fLength(dx, dy);
+        return distance;
     }
 
     init(delta: number): void {
         this.lambda = 0;
     }
 
+    // Variables needed in the apply function that we don't want to reallocate :)
+    private _fromGlobalAttachmentPosition: Vector2 = new Vector2();
+    private _toGlobalAttachmentPosition: Vector2 = new Vector2();
+
+    private _direction: Vector2 = new Vector2();
+    private _fromLocalDirection: Vector2 = new Vector2();
+    private _toLocalDirection: Vector2 = new Vector2();
+
+    private _impulse: Vector2 = new Vector2();
+
     apply(delta: number): void {
-        let dx = this.to.body.position.x - this.from.body.position.x;
-        let dy = this.to.body.position.y - this.from.body.position.y;
-
-        let w1 = this.from.getGeneralizedInverseMass();
-        let w2 = this.to.getGeneralizedInverseMass();
-
-        let distance = Vector2.fLength(dx, dy);
-
+        let fromGlobalAttachmentPosition = this.from.getGlobalAttachmentPosition(this._fromGlobalAttachmentPosition);
+        let toGlobalAttachmentPosition = this.to.getGlobalAttachmentPosition(this._toGlobalAttachmentPosition);
+        
+        let direction = Vector2.directionOut(fromGlobalAttachmentPosition, toGlobalAttachmentPosition, this._direction);
+        let distance = direction.length;
+        
         if(distance == 0) return;
 
-        dx /= distance;
-        dy /= distance;
+        direction.scale(1 / distance);
+
+        let fromLocalDirection = this.from.getLocalDirection(direction, this._fromLocalDirection);
+        let toLocalDirection = this.to.getLocalDirection(direction, this._toLocalDirection);
+        
+        let w1 = this.from.getLocalGeneralizedInverseMass(fromLocalDirection);
+        let w2 = this.to.getLocalGeneralizedInverseMass(toLocalDirection);
 
         let alpha = this.compliance / (delta * delta);
 
@@ -60,10 +80,9 @@ export class DistanceConstraint2D extends Constraint2D {
 
         this.lambda += deltaLambda;
 
-        let ix = dx * deltaLambda;
-        let iy = dy * deltaLambda;
-
-        this.from.body.addImmediateCentralImpulse(-ix, -iy, delta);
-        this.to.body.addImmediateCentralImpulse(ix, iy, delta);
+        let impulse = this._impulse.set(direction).scale(deltaLambda);
+        
+        this.from.body.addImmediateImpulseAt(-impulse.x, -impulse.y, fromGlobalAttachmentPosition.x, fromGlobalAttachmentPosition.y, delta);
+        this.to.body.addImmediateImpulseAt(impulse.x, impulse.y, toGlobalAttachmentPosition.x, toGlobalAttachmentPosition.y, delta);
     }
 }

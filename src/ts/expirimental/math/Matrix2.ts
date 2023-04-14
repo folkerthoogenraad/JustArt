@@ -32,7 +32,7 @@ export class Matrix2 {
     // Getters
     // ============================================================= //
     get determinant(){
-        return Vector2.fCross(this.xx, this.yy, this.yx, this.yy);
+        return Vector2.fCross(this.xx, this.xy, this.yx, this.yy);
     }
 
     // ============================================================= //

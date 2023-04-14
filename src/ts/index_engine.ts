@@ -24,7 +24,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
 
     let piston = engineGraphics.createPiston(1, 0.8);
     let arm = engineGraphics.createArm(1.5);
-    let weight = engineGraphics.createWeight(0.7);
+    let weight = engineGraphics.createCounterWeight(0.7);
 
     graphics.setFillColor("black");
     graphics.setStrokeColor("white");

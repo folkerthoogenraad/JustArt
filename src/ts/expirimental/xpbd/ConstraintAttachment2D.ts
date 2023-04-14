@@ -7,13 +7,29 @@ export class ConstraintAttachment2D {
     readonly isCentral: boolean;
 
     constructor(body: Rigidbody2D, relativePosition?: Vector2){
-        this.isCentral = relativePosition === undefined;
         this.body = body;
         this.relativePosition = relativePosition ?? new Vector2();
+        this.isCentral = relativePosition === undefined;
     }
 
-    // TODO the normal vector and whatnot
-    getGeneralizedInverseMass(){
-        return this.body.inverseMass;
+    getLocalGeneralizedInverseMass(normal: Vector2): number {
+        if(this.isCentral){
+            return this.body.inverseMass;
+        }
+        else {
+            let cross = Vector2.cross(normal, this.relativePosition);
+
+            return this.body.inverseMass + cross * this.body.inverseInertia * cross;
+        }
+    }
+
+    getLocalDirection(input: Vector2, output: Vector2): Vector2{
+        return this.body.inverseBasis.transformOut(input, output);
+    }
+
+    getGlobalAttachmentPosition(output: Vector2): Vector2{
+        return this.body.basis
+            .transformOut(this.relativePosition, output)
+            .add(this.body.position);
     }
 }

@@ -3,9 +3,11 @@ import { MathHelper } from "expirimental/math/MathHelper";
 import { Vector2 } from "expirimental/math/Vector2";
 import { EnginePartGraphics } from "expirimental/paths/EnginePartGraphics";
 import { AxisConstraint2D } from "expirimental/xpbd/AxisConstraint2D";
+import { AxleCosntraint2D } from "expirimental/xpbd/AxleConstraint2D";
 import { Constraint2D } from "expirimental/xpbd/Constraint2D";
 import { ConstraintAttachment2D } from "expirimental/xpbd/ConstraintAttachment2D";
 import { DistanceConstraint2D } from "expirimental/xpbd/DistanceConstraint2D";
+import { PinConstraint2D } from "expirimental/xpbd/PinConstraint2D";
 import { Rigidbody2D } from "expirimental/xpbd/Rigidbody2D";
 import { RigidbodyGraphic2D } from "expirimental/xpbd/graphics/RigidbodyGraphic2D";
 import { Color } from "lib/graphics/Color";
@@ -18,171 +20,238 @@ import { ViewportFit, ViewportSettings } from "lib/settings/ViewportSettings";
 
 let graphics: Graphics2D;
 
-let bodyGraphics: RigidbodyGraphic2D[] = [];
 let bodies: Rigidbody2D[] = [];
 let constraints: Constraint2D[] = [];
 
-function updateBody(body: Rigidbody2D, delta: number){
-    body.applyMotion(delta);
-    body.addImmediateCentralForce(0, 20, delta);
+let bodyRadius = 1;
+
+function updateBody(body: Rigidbody2D, delta: number) {
+   body.applyMotion(delta);
+   
+   if(body.inverseMass > 0){
+      body.addImmediateForce(0, 20 / body.inverseMass, delta);
+   }
 }
 
-function setupScene(){
-    let fixedLength = 0.6;
-    let headLength = 1.7;
-    // Create the bodies
-    let head = new Rigidbody2D();
-    head.position = new Vector2(0, -headLength);
-    
-    let arm = new Rigidbody2D();
-    arm.position = new Vector2(fixedLength, 0);
-    arm.velocity = new Vector2(0, 0);
-    
-    let fixedAttachment = new Rigidbody2D();
-    fixedAttachment.inverseMass = 0;
-    fixedAttachment.position = new Vector2(0, 0);
+function setupScene_axle() {
+   let a = new Rigidbody2D();
+   a.translateTo(-2, 0);
+   a.inverseInertia = 1/10;
 
-    bodies.push(head);
-    bodies.push(arm);
-    bodies.push(fixedAttachment);
+   let b = new Rigidbody2D();
+   b.translateTo(2, 0);
 
-    // Create the constraints
-    let armAttachmentFixed = new DistanceConstraint2D(new ConstraintAttachment2D(arm), new ConstraintAttachment2D(fixedAttachment), 1);
-    let headArmAttachment = new DistanceConstraint2D(new ConstraintAttachment2D(head), new ConstraintAttachment2D(arm), 1);
+   bodies.push(a);
+   bodies.push(b);
 
-    let headAxisConstraint = new AxisConstraint2D(new ConstraintAttachment2D(head), new Vector2(0, -2), new Vector2(0, 1));
+   let aPin = new PinConstraint2D(new ConstraintAttachment2D(a), a.position.clone());
+   let bPin = new PinConstraint2D(new ConstraintAttachment2D(b), b.position.clone());
 
-    armAttachmentFixed.resetRestDistance();
-    headArmAttachment.resetRestDistance();
+   let axleConstraint = new AxleCosntraint2D(a, b);
+   axleConstraint.gearRatio = 10;
 
-    constraints.push(armAttachmentFixed);
-    constraints.push(headArmAttachment);
-    constraints.push(headAxisConstraint);
-
-    // Create the visuals
-    let engineGraphics = new EnginePartGraphics();
-    engineGraphics.lineWidth = graphics.pointSize * 10;
-
-    let headGraphics = new RigidbodyGraphic2D(head, engineGraphics.createPiston(1, 0.8));
-    let armGraphics = new RigidbodyGraphic2D(arm, engineGraphics.createArm(headArmAttachment.restDistance));
-    let fixedGraphics = new RigidbodyGraphic2D(fixedAttachment, engineGraphics.createWeight(fixedLength));
-
-    armGraphics.alignWith = head;
-    fixedGraphics.alignWith = arm;
-
-    bodyGraphics.push(armGraphics);
-    bodyGraphics.push(fixedGraphics);
-    bodyGraphics.push(headGraphics);
+   constraints.push(aPin);
+   constraints.push(bPin);
+   constraints.push(axleConstraint);
 }
 
-function setupMouseControls(canvas: HTMLCanvasElement){
-    let selected: Rigidbody2D|undefined = undefined;
+function setupScene() {
+   // Create the bodies
+   let piston = new Rigidbody2D();
+   piston.translateTo(-1, -3);
+   piston.inverseMass = 1;
+   piston.inverseInertia = 1 / 10; // MR^2
+   
+   let counterweight = new Rigidbody2D();
+   counterweight.translateTo(0, -0.5);
+   counterweight.inverseInertia = 1 / 10; // MR^2
 
-    let offsetX = 0;
-    let offsetY = 0;
+   let axle = new Rigidbody2D();
+   axle.translateTo(-2, 0);
 
-    let previousMouseX = 0;
-    let previousMouseY = 0;
+   bodies.push(piston);
+   bodies.push(counterweight);
+   bodies.push(axle);
 
-    // Very hacky, should be solved with a nice constraint instead.
-    let select = (body?: Rigidbody2D) => {
-        selected = body;
-    }
-    
-    canvas.addEventListener("mousedown", (ev) => {
-        let p = graphics.canvasToViewport(ev.offsetX, ev.offsetY);
+   let connectionrod = new DistanceConstraint2D(new ConstraintAttachment2D(piston, new Vector2(-0.4, 0.5)), new ConstraintAttachment2D(counterweight, new Vector2(-0.5, 0)));
+   let crankshaft = new PinConstraint2D(new ConstraintAttachment2D(counterweight, new Vector2(0.5, 0.5)), new Vector2(0.5, 0));
+   let axlePin = new PinConstraint2D(new ConstraintAttachment2D(axle), axle.position.clone());
 
-        let distance = 0.4;
+   let axisConstraint = new AxisConstraint2D(new ConstraintAttachment2D(piston, new Vector2(0, -0.5)), piston.position.clone().addY(-0.5), new Vector2(0, 1).normalize())
+   let axleConstraint = new AxleCosntraint2D(axle, counterweight);
+   axleConstraint.gearRatio = 2;
 
-        bodies.forEach(body => {
-            let d = Vector2.fDistance(p.x, p.y, body.position.x, body.position.y);
+   constraints.push(connectionrod);
+   constraints.push(crankshaft);
+   constraints.push(axisConstraint);
+   constraints.push(axlePin);
+   constraints.push(axleConstraint);
+}
 
-            if(d < distance){
-                distance = d;
-                select(body);
-                offsetX = body.position.x - p.x;
-                offsetY = body.position.y - p.y;
+function setupMouseControls(canvas: HTMLCanvasElement) {
+   let selected: Rigidbody2D | undefined = undefined;
+
+   let offsetX = 0;
+   let offsetY = 0;
+
+   // Hacky nullable stuff.
+   let constraint = new PinConstraint2D(new ConstraintAttachment2D(selected!), new Vector2());
+   constraint.enabled = false;
+
+   constraints.push(constraint);
+
+   let select = (body?: Rigidbody2D) => {
+      selected = body;
+
+      constraint.attachment = new ConstraintAttachment2D(selected!, body?.inverseBasis?.transform(new Vector2(offsetX, offsetY)));
+      constraint.enabled = body !== undefined;
+      
+   }
+
+   canvas.addEventListener("mousedown", (ev) => {
+      let p = graphics.canvasToViewport(ev.offsetX, ev.offsetY);
+
+      let distance = bodyRadius;
+
+      bodies.forEach(body => {
+         let d = Vector2.fDistance(p.x, p.y, body.position.x, body.position.y);
+
+         if (d < distance) {
+            distance = d;
+            offsetX = p.x - body.position.x;
+            offsetY = p.y - body.position.y;
+            select(body);
+         }
+      });
+   });
+
+   canvas.addEventListener("mousemove", (ev) => {
+      let p = graphics.canvasToViewport(ev.offsetX, ev.offsetY);
+
+      constraint.origin.apply(p.x, p.y);
+   });
+
+   canvas.addEventListener("mouseup", ev => {
+      select(undefined);
+   });
+
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+   let canvas = document.getElementById("canvas") as HTMLCanvasElement;
+   graphics = new Graphics2D(canvas);
+   graphics.context.miterLimit = 10; // Kinda stupid but works :)
+   graphics.setViewportSettings(new ViewportSettings(-5, -5, 5, 5, ViewportFit.Contain));
+
+   let lineWidth = 4;
+
+   graphics.setLineWidthInPoints(lineWidth);
+
+   setupMouseControls(canvas);
+   setupScene();
+
+   let update = (delta: number) => {
+      bodies.forEach(body => updateBody(body, delta));
+
+      constraints.forEach(constraint => {
+         if (constraint.enabled) {
+            constraint.init(delta)
+         }
+      });
+      for(let i = 0; i < 1; i++){
+         constraints.forEach(constraint => {
+            if (constraint.enabled) {
+               constraint.apply(delta);
             }
-        });
-        
-        previousMouseX = p.x;
-        previousMouseY = p.y;
-    });
-    
-    canvas.addEventListener("mousemove", (ev) => {
-        let p = graphics.canvasToViewport(ev.offsetX, ev.offsetY);
+         });
+      }
 
-        if(selected !== undefined){
-            selected.position.apply(p.x - offsetX, p.y - offsetY);
-        }
-        
-        previousMouseX = p.x;
-        previousMouseY = p.y;
-    });
+      bodies.forEach(body => body.recalculateVelocity(delta));
+   };
 
-    canvas.addEventListener("mouseup", ev => {
-        select(undefined);
-    });
-    
-}
+   let draw = () => {
+      graphics.setup();
 
-document.addEventListener("DOMContentLoaded", async ()=>{
-    let canvas = document.getElementById("canvas") as HTMLCanvasElement;
-    graphics = new Graphics2D(canvas);
-    graphics.context.miterLimit = 10; // Kinda stupid but works :)
-    graphics.setViewportSettings(new ViewportSettings(-3, -3, 3, 3, ViewportFit.Contain));
+      let background = "#e0ddd5";
+      let foreground = "#352f20";
+      
+      graphics.setFillColor(background);
+      graphics.drawBackground();
+      
+      graphics.setFillColor(foreground);
+      graphics.setStrokeColor(background);
+      graphics.setLineWidthInPoints(2);
 
-    let lineWidth = 4;
+      graphics.setStrokeColor("red");
+      constraints.forEach(constraint => {
+         if(!constraint.enabled) return;
 
-    graphics.setLineWidthInPoints(lineWidth);
+         if ((constraint instanceof DistanceConstraint2D)){
+            let from = constraint.from.getGlobalAttachmentPosition(new Vector2());
+            let to = constraint.to.getGlobalAttachmentPosition(new Vector2());
+            
+            graphics.drawLine(from.x, from.y, to.x, to.y);
+            graphics.drawCircle(from.x, from.y, graphics.pointSize * lineWidth, false);
+            graphics.drawCircle(to.x, to.y, graphics.pointSize * lineWidth, false);
+         }
+         if ((constraint instanceof PinConstraint2D)){
+            let attachment = constraint.attachment.getGlobalAttachmentPosition(new Vector2());
+            let origin = constraint.origin;
 
-    setupScene();
-    setupMouseControls(canvas);
+            let size = lineWidth * graphics.pointSize * 1;
+            
+            graphics.drawLine(origin.x, origin.y, attachment.x, attachment.y);
+            graphics.drawLine(attachment.x - size, attachment.y - size, attachment.x + size, attachment.y + size);
+            graphics.drawLine(attachment.x - size, attachment.y + size, attachment.x + size, attachment.y - size);
+         }
+         if ((constraint instanceof AxisConstraint2D)){
+            let attachment = constraint.attachment.getGlobalAttachmentPosition(new Vector2());
+            let origin = constraint.origin;
+            let axis = constraint.axis;
 
-    let update = (delta: number) => {
-        bodies.forEach(body => updateBody(body, delta));
-        constraints.forEach(constraint => constraint.init(delta));
-        constraints.forEach(constraint => constraint.apply(delta));
-    };
+            origin = attachment;
 
-    let draw = () => {
-        graphics.setup();
+            let axisSize = lineWidth * graphics.pointSize * 8;
 
-        graphics.setStrokeColor("white");
-        graphics.setLineWidthInPoints(10);
+            let anx = axis.y * axisSize / 4;
+            let any = -axis.x * axisSize / 4;
+            
+            graphics.drawLine(origin.x - anx, origin.y - any, origin.x + anx, origin.y + any);
+            graphics.drawLine(origin.x - axis.x * axisSize, origin.y - axis.y * axisSize, origin.x + axis.x * axisSize, origin.y + axis.y * axisSize);
+         }
+      });
 
-        bodyGraphics.forEach(graphic => graphic.draw(graphics));
+      graphics.setStrokeColor("green");
+      bodies.forEach(body => {
+         graphics.drawCircle(body.position.x, body.position.y, bodyRadius, false);
 
-        if (true) return;
+         graphics.drawLine(body.position.x, body.position.y, body.position.x + body.basis.xx * bodyRadius * 1.1, body.position.y + body.basis.xy * bodyRadius * 1.1);
+      });
+   }
 
-        graphics.setStrokeColor("red");
-        constraints.forEach(constraint => {
-            if(!(constraint instanceof DistanceConstraint2D)) return;
+   let previousTime = window.performance.now();
+   let elapsedTime = 0;
 
-            graphics.drawLine(constraint.from.body.position.x, constraint.from.body.position.y, constraint.to.body.position.x, constraint.to.body.position.y);
-        });
-        bodies.forEach(body => {
-            graphics.drawCircle(body.position.x, body.position.y, graphics.pointSize * lineWidth * 2, false);
-        });
-    }
+   let tick = () => {
+      requestAnimationFrame(tick);
 
-    let previousTime = window.performance.now();
+      let currentTime = window.performance.now();
 
-    let tick = () => {
-        let currentTime = window.performance.now();
+      // Unsecure whatever context so 100
+      let delta = (currentTime - previousTime) / 1000;
 
-        let delta = (currentTime - previousTime) / 1000;
+      if(delta > 0.2){
+         delta = 0.2;
+      }
 
-        previousTime = currentTime;
+      previousTime = currentTime;
 
-        let substeps = 1;
-        for(let i = 0; i < substeps; i++){
-            update(delta / substeps);
-        }
-        draw();
-        requestAnimationFrame(tick);
-    }
+      let substeps = 1;
+      for (let i = 0; i < substeps; i++) {
+         update (delta / substeps);
+      }
+      draw();
+   }
 
-    requestAnimationFrame(tick);
- });
- 
+   requestAnimationFrame(tick);
+});

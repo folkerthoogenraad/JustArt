@@ -3,23 +3,21 @@ import { Constraint2D } from "./Constraint2D";
 import { Rigidbody2D } from "./Rigidbody2D";
 import { ConstraintAttachment2D } from "./ConstraintAttachment2D";
 
-export class AxisConstraint2D extends Constraint2D {
+export class PinConstraint2D extends Constraint2D {
     compliance: number;
 
     origin: Vector2;
-    axis: Vector2;
 
     attachment: ConstraintAttachment2D;
 
     lambda: number = 0;
 
-    constructor(attachment: ConstraintAttachment2D, origin: Vector2, axis: Vector2, compliance: number = 0) {
+    constructor(attachment: ConstraintAttachment2D, origin: Vector2, compliance: number = 0) {
         super();
 
         this.attachment = attachment;
 
         this.origin = origin;
-        this.axis = axis;
 
         this.compliance = compliance;
     }
@@ -37,11 +35,6 @@ export class AxisConstraint2D extends Constraint2D {
         let globalAttachmentPosition = this.attachment.getGlobalAttachmentPosition(this._globalAttachmentPosition);
         
         let direction = Vector2.directionOut(globalAttachmentPosition, this.origin, this._normal);
-
-        let amount = Vector2.dot(direction, this.axis);
-
-        direction.subX(amount * this.axis.x).subY(amount * this.axis.y);
-
         let distance = direction.length;
         
         if(distance == 0) return;
@@ -63,6 +56,5 @@ export class AxisConstraint2D extends Constraint2D {
         let impulse = this._impulse.set(direction).scale(deltaLambda);
         
         this.attachment.body.addImmediateImpulseAt(-impulse.x, -impulse.y, globalAttachmentPosition.x, globalAttachmentPosition.y, delta);
-
     }
 }
