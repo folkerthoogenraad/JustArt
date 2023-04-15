@@ -13,13 +13,19 @@ export class DistanceConstraintGraphic2D {
         this.path = path;
     }
 
+    private _positionFrom: Vector2 = new Vector2();
+    private _positionTo: Vector2 = new Vector2();
+
     draw(graphics: Graphics2D){
         graphics.push();
 
-        graphics.translate(this.constraint.from.body.position.x, this.constraint.from.body.position.y);
+        let from = this.constraint.from.getGlobalAttachmentPosition(this._positionFrom);
+        let to = this.constraint.to.getGlobalAttachmentPosition(this._positionTo);
+
+        graphics.translate(from.x, from.y);
         
-        let dx = Vector2.dx(this.constraint.from.body.position, this.constraint.to.body.position);
-        let dy = Vector2.dy(this.constraint.from.body.position, this.constraint.to.body.position);
+        let dx = Vector2.dx(from, to);
+        let dy = Vector2.dy(from, to);
 
         let angle = Vector2.fAngle(dx, dy);
 

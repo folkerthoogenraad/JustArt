@@ -1,3 +1,5 @@
+import { SolverScene } from "engine-sim/SolverScene";
+import { createEngineTestScene } from "engine-sim/TestScenes";
 import { InterpolationCurves } from "expirimental/math/InterpolationCurve";
 import { MathHelper } from "expirimental/math/MathHelper";
 import { Vector2 } from "expirimental/math/Vector2";
@@ -19,74 +21,7 @@ import { ViewportFit, ViewportSettings } from "lib/settings/ViewportSettings";
 
 
 let graphics: Graphics2D;
-
-let bodies: Rigidbody2D[] = [];
-let constraints: Constraint2D[] = [];
-
-let bodyRadius = 1;
-
-function updateBody(body: Rigidbody2D, delta: number) {
-   body.applyMotion(delta);
-   
-   if(body.inverseMass > 0){
-      body.addImmediateForce(0, 20 / body.inverseMass, delta);
-   }
-}
-
-function setupScene_axle() {
-   let a = new Rigidbody2D();
-   a.translateTo(-2, 0);
-   a.inverseInertia = 1/10;
-
-   let b = new Rigidbody2D();
-   b.translateTo(2, 0);
-
-   bodies.push(a);
-   bodies.push(b);
-
-   let aPin = new PinConstraint2D(new ConstraintAttachment2D(a), a.position.clone());
-   let bPin = new PinConstraint2D(new ConstraintAttachment2D(b), b.position.clone());
-
-   let axleConstraint = new AxleCosntraint2D(a, b);
-   axleConstraint.gearRatio = 10;
-
-   constraints.push(aPin);
-   constraints.push(bPin);
-   constraints.push(axleConstraint);
-}
-
-function setupScene() {
-   // Create the bodies
-   let piston = new Rigidbody2D();
-   piston.translateTo(-1, -3);
-   piston.inverseMass = 1;
-   piston.inverseInertia = 1 / 10; // MR^2
-   
-   let counterweight = new Rigidbody2D();
-   counterweight.translateTo(0, -0.5);
-   counterweight.inverseInertia = 1 / 10; // MR^2
-
-   let axle = new Rigidbody2D();
-   axle.translateTo(-2, 0);
-
-   bodies.push(piston);
-   bodies.push(counterweight);
-   bodies.push(axle);
-
-   let connectionrod = new DistanceConstraint2D(new ConstraintAttachment2D(piston, new Vector2(-0.4, 0.5)), new ConstraintAttachment2D(counterweight, new Vector2(-0.5, 0)));
-   let crankshaft = new PinConstraint2D(new ConstraintAttachment2D(counterweight, new Vector2(0.5, 0.5)), new Vector2(0.5, 0));
-   let axlePin = new PinConstraint2D(new ConstraintAttachment2D(axle), axle.position.clone());
-
-   let axisConstraint = new AxisConstraint2D(new ConstraintAttachment2D(piston, new Vector2(0, -0.5)), piston.position.clone().addY(-0.5), new Vector2(0, 1).normalize())
-   let axleConstraint = new AxleCosntraint2D(axle, counterweight);
-   axleConstraint.gearRatio = 2;
-
-   constraints.push(connectionrod);
-   constraints.push(crankshaft);
-   constraints.push(axisConstraint);
-   constraints.push(axlePin);
-   constraints.push(axleConstraint);
-}
+let scene: SolverScene;
 
 function setupMouseControls(canvas: HTMLCanvasElement) {
    let selected: Rigidbody2D | undefined = undefined;
@@ -98,7 +33,7 @@ function setupMouseControls(canvas: HTMLCanvasElement) {
    let constraint = new PinConstraint2D(new ConstraintAttachment2D(selected!), new Vector2());
    constraint.enabled = false;
 
-   constraints.push(constraint);
+   scene.constraints.push(constraint);
 
    let select = (body?: Rigidbody2D) => {
       selected = body;
@@ -111,9 +46,9 @@ function setupMouseControls(canvas: HTMLCanvasElement) {
    canvas.addEventListener("mousedown", (ev) => {
       let p = graphics.canvasToViewport(ev.offsetX, ev.offsetY);
 
-      let distance = bodyRadius;
+      let distance = 0.4;
 
-      bodies.forEach(body => {
+      scene.bodies.forEach(body => {
          let d = Vector2.fDistance(p.x, p.y, body.position.x, body.position.y);
 
          if (d < distance) {
@@ -140,33 +75,18 @@ function setupMouseControls(canvas: HTMLCanvasElement) {
 document.addEventListener("DOMContentLoaded", async () => {
    let canvas = document.getElementById("canvas") as HTMLCanvasElement;
    graphics = new Graphics2D(canvas);
-   graphics.context.miterLimit = 10; // Kinda stupid but works :)
+   graphics.context.miterLimit = 10;
    graphics.setViewportSettings(new ViewportSettings(-5, -5, 5, 5, ViewportFit.Contain));
+//    graphics.setViewportSettings(new ViewportSettings(-50, -50, 50, 50, ViewportFit.Contain));
 
-   let lineWidth = 4;
+   scene = createEngineTestScene();
 
-   graphics.setLineWidthInPoints(lineWidth);
+   scene.substeps = 1;
 
    setupMouseControls(canvas);
-   setupScene();
 
    let update = (delta: number) => {
-      bodies.forEach(body => updateBody(body, delta));
-
-      constraints.forEach(constraint => {
-         if (constraint.enabled) {
-            constraint.init(delta)
-         }
-      });
-      for(let i = 0; i < 1; i++){
-         constraints.forEach(constraint => {
-            if (constraint.enabled) {
-               constraint.apply(delta);
-            }
-         });
-      }
-
-      bodies.forEach(body => body.recalculateVelocity(delta));
+      scene.update(delta);
    };
 
    let draw = () => {
@@ -177,67 +97,21 @@ document.addEventListener("DOMContentLoaded", async () => {
       
       graphics.setFillColor(background);
       graphics.drawBackground();
-      
-      graphics.setFillColor(foreground);
+
+      graphics.setLineWidthInPoints(4);
       graphics.setStrokeColor(background);
-      graphics.setLineWidthInPoints(2);
+      graphics.setFillColor(foreground);
+      scene.draw(graphics);
 
-      graphics.setStrokeColor("red");
-      constraints.forEach(constraint => {
-         if(!constraint.enabled) return;
-
-         if ((constraint instanceof DistanceConstraint2D)){
-            let from = constraint.from.getGlobalAttachmentPosition(new Vector2());
-            let to = constraint.to.getGlobalAttachmentPosition(new Vector2());
-            
-            graphics.drawLine(from.x, from.y, to.x, to.y);
-            graphics.drawCircle(from.x, from.y, graphics.pointSize * lineWidth, false);
-            graphics.drawCircle(to.x, to.y, graphics.pointSize * lineWidth, false);
-         }
-         if ((constraint instanceof PinConstraint2D)){
-            let attachment = constraint.attachment.getGlobalAttachmentPosition(new Vector2());
-            let origin = constraint.origin;
-
-            let size = lineWidth * graphics.pointSize * 1;
-            
-            graphics.drawLine(origin.x, origin.y, attachment.x, attachment.y);
-            graphics.drawLine(attachment.x - size, attachment.y - size, attachment.x + size, attachment.y + size);
-            graphics.drawLine(attachment.x - size, attachment.y + size, attachment.x + size, attachment.y - size);
-         }
-         if ((constraint instanceof AxisConstraint2D)){
-            let attachment = constraint.attachment.getGlobalAttachmentPosition(new Vector2());
-            let origin = constraint.origin;
-            let axis = constraint.axis;
-
-            origin = attachment;
-
-            let axisSize = lineWidth * graphics.pointSize * 8;
-
-            let anx = axis.y * axisSize / 4;
-            let any = -axis.x * axisSize / 4;
-            
-            graphics.drawLine(origin.x - anx, origin.y - any, origin.x + anx, origin.y + any);
-            graphics.drawLine(origin.x - axis.x * axisSize, origin.y - axis.y * axisSize, origin.x + axis.x * axisSize, origin.y + axis.y * axisSize);
-         }
-      });
-
-      graphics.setStrokeColor("green");
-      bodies.forEach(body => {
-         graphics.drawCircle(body.position.x, body.position.y, bodyRadius, false);
-
-         graphics.drawLine(body.position.x, body.position.y, body.position.x + body.basis.xx * bodyRadius * 1.1, body.position.y + body.basis.xy * bodyRadius * 1.1);
-      });
+      scene.drawDebug(graphics, 0.3);
    }
 
    let previousTime = window.performance.now();
-   let elapsedTime = 0;
-
    let tick = () => {
       requestAnimationFrame(tick);
 
       let currentTime = window.performance.now();
 
-      // Unsecure whatever context so 100
       let delta = (currentTime - previousTime) / 1000;
 
       if(delta > 0.2){
@@ -246,10 +120,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       previousTime = currentTime;
 
-      let substeps = 1;
-      for (let i = 0; i < substeps; i++) {
-         update (delta / substeps);
-      }
+      // In reality you should _never_ use the actual elapsed delta but a fixed delta time
+      // but this is fine for a nice and smooth browser experience.
+      update (delta);
       draw();
    }
 

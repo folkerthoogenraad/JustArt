@@ -93,16 +93,21 @@ export class Rigidbody2D {
         this._previousRotation = this._rotation;
     }
 
-    rotate(angle: number){
+    rotate(angle: number): Rigidbody2D{
         this.rotation += angle;
+        return this;
     }
-    translate(x: number, y: number){
+    translate(x: number, y: number): Rigidbody2D{
         this.position.addX(x).addY(y);
         this._previousPosition.addX(x).addY(y);
+
+        return this;
     }
-    translateTo(x: number, y: number){
+    translateTo(x: number, y: number): Rigidbody2D{
         this.position.apply(x, y);
         this._previousPosition.apply(x, y);
+
+        return this;
     }
 
     addImmediateForce(fx: number, fy: number, delta: number){

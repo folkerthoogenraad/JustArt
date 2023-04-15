@@ -8,9 +8,17 @@ export class RigidbodyGraphic2D {
 
     path: Path2D;
 
+    rotationalOffset: number = 0;
+
     constructor(body: Rigidbody2D, path: Path2D){
         this.body = body;
         this.path = path;
+    }
+
+    setRotationalOffset(offset: number){
+        this.rotationalOffset = offset;
+        
+        return this;
     }
 
     draw(graphics: Graphics2D){
@@ -24,10 +32,10 @@ export class RigidbodyGraphic2D {
 
             let angle = Vector2.fAngle(dx, dy);
 
-            graphics.rotate(angle);
+            graphics.rotate(angle + this.rotationalOffset);
         }
         else{
-            graphics.rotate(this.body.rotation);
+            graphics.rotate(this.body.rotation + this.rotationalOffset);
         }
 
         graphics.drawPath(this.path, false);
