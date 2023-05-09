@@ -1,5 +1,5 @@
-import { MathHelper } from "expirimental/math/MathHelper";
-import { Vector2 } from "expirimental/math/Vector2";
+import { MathHelper } from "lib/math/MathHelper";
+import { Vector2 } from "lib/math/Vector2";
 
 export interface PressurePoint {
     position: Vector2;

@@ -1,393 +1,264 @@
-import { HandDrawnBrush } from "expirimental/brushes/HandDrawnBrush";
-import { PressurePath } from "expirimental/brushes/PressurePath";
-import { InterpolationCurves } from "expirimental/math/InterpolationCurve";
-import { MathHelper } from "expirimental/math/MathHelper";
-import { Vector2 } from "expirimental/math/Vector2";
+import { gameLoop } from "lib/GameLoop";
 import { Color } from "lib/graphics/Color";
 import { Graphics2D } from "lib/graphics/Graphics2D";
-import { ImageLoader } from "lib/loader/ImageLoader";
+import { GamepadAxis, GamepadButton, GamepadInput } from "lib/input/GamepadInput";
+import { GamepadAxisAction, GamepadButtonInputAction as GamepadButtonAction } from "lib/input/InputAction";
+import { InputMap } from "lib/input/InputMap";
+import { KeyboardInput } from "lib/input/KeyboardInput";
+import { MouseInput } from "lib/input/MouseInput";
+import { MathHelper } from "lib/math/MathHelper";
+import { RingBuffer } from "lib/math/RingBuffer";
+import { Vector2 } from "lib/math/Vector2";
 import { ViewportFit, ViewportSettings } from "lib/settings/ViewportSettings";
+import { AxisConstraint2D } from "lib/xpbd/AxisConstraint2D";
+import { ConstraintAttachment2D } from "lib/xpbd/ConstraintAttachment2D";
+import { DistanceConstraint2D } from "lib/xpbd/DistanceConstraint2D";
+import { Rigidbody2D } from "lib/xpbd/Rigidbody2D";
+import { XPBDScene2D } from "lib/xpbd/XPBDScene2D";
 
-async function imageSomething(){
-   let canvas = document.getElementById("canvas") as HTMLCanvasElement;
+let graphics: Graphics2D;
 
-   let image = await ImageLoader.getImageFromURL("https://images.unsplash.com/photo-1680466357571-e2a63c884093?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=774&q=80");
-   
-   let graphics = new Graphics2D(canvas);
-   graphics.setViewportSettings(new ViewportSettings(0, 0, image.width, image.height, ViewportFit.Cover));
+class WheelBody2D extends Rigidbody2D {
+  wheelVelocity: number = 0;
+  wheelInverseInertia: number = 1;
 
-   graphics.translate(image.width / 2, image.height / 2);
-   graphics.rotateDeg(45);
-   graphics.translate(-image.width / 2, -image.height / 2);
+  frictionCoefficient: number = 1;
 
-   graphics.push();
+  debug = false;
+  
+  private _forward = new Vector2();
+  private _right = new Vector2();
 
-   graphics.clip((path) => {
-      path.arc(graphics.viewportSettings.width / 2, graphics.viewportSettings.height / 2, 256, 0, Math.PI * 2, false);
-   });
+  private _nxr = new Vector2();
+  private _r = new Vector2();
+  private _n = new Vector2();
+  private _impulse = new Vector2();
 
-   graphics.drawImage(image, 0, 0);
+  applyFriction(delta: number): void {
+    let forward = this.basis.getX(this._forward);
+    let right = this.basis.getY(this._right);
+    
+    // Velocity in normal space
+    let groundVelocity = Vector2.dot(forward, this.velocity);
+    let forwardVelocity = groundVelocity - this.wheelVelocity;
+    let lateralVelocity = Vector2.dot(right, this.velocity);
 
-   graphics.pop();
+    let normalForce = this.frictionCoefficient * 500;
+    let coefficient = 1;
 
-   canvas.addEventListener("click", ev => {
-      let p = graphics.canvasToViewport(ev.offsetX, ev.offsetY);
+    let slipAngle = Math.atan(lateralVelocity / Math.abs(this.wheelVelocity));
+    let slipRatio = (this.wheelVelocity / groundVelocity - 1);
 
-      graphics.drawCircle(p.x!, p.y!, graphics.pointSize * 4, true);
+    if(!isNaN(slipRatio) && !isNaN(slipAngle) && isFinite(slipRatio) && isFinite(slipAngle)){
+      let slipAnglePeak = 22 * (Math.PI / 180);
+      let slipRatioPeak = 0.4;
 
-      console.log(p);
-   });
+      coefficient = Math.max(
+        MathHelper.clamp(Math.abs(slipAngle) / slipAnglePeak, 0, 1),
+        MathHelper.clamp(Math.abs(slipRatio) / slipRatioPeak, 0, 1));
+    }
+
+    let n = this._n.apply(this.velocity.x * delta, this.velocity.y * delta).addScaled(forward, -this.wheelVelocity * delta);
+    let r = this._r.apply(forwardVelocity * delta, lateralVelocity * delta);
+    let nxr = this._nxr.set(r).perpendicularize(); // Cross with (0, 0, 1)
+
+    let distance = n.length;
+
+    if(distance == 0) return;
+
+    n.scale(1 / distance);
+
+    let w1 = this.inverseMass + nxr.y * this.wheelInverseInertia * nxr.y; // Due to the inertia tensor being zero everywhere else, this would be the correct calculation
+    let w2 = 0;
+
+    let c = distance;
+    let deltaLambda = (-c) / (w1 + w2);
+
+    let lambdaMax = normalForce * coefficient * (delta * delta);
+
+    if(Math.abs(deltaLambda) > lambdaMax){
+      deltaLambda = Math.sign(deltaLambda) * lambdaMax;
+    }
+
+    let impulse = this._impulse.set(n).scale(deltaLambda);
+  
+
+    this.addImmediateImpulseAt(impulse.x, impulse.y, this.position.x, this.position.y, delta);
+    this.wheelVelocity -= Vector2.dot(impulse, forward) / delta * this.wheelInverseInertia; // Note that the force on the x axis (the forward axis for the wheel) is the actual rotational impulse force
+  }
+
+  get wheelInertia(){
+    return 1 / this.wheelInverseInertia;
+  }
+  set wheelInertia(inertia: number){
+    this.wheelInverseInertia = 1 / inertia;
+  }
 }
 
-function signatureStuff(){
-   let canvas = document.getElementById("canvas") as HTMLCanvasElement;
-   
-   let graphics = new Graphics2D(canvas);
+document.addEventListener("DOMContentLoaded", ()=>{
+  // Graphics etc
+  let canvas = document.getElementById("canvas") as HTMLCanvasElement;
+  graphics = new Graphics2D(canvas);
+  graphics.setViewportSettings(ViewportSettings.centered(0, 0, 640, 360, ViewportFit.Cover));
+  
+  // Input devices setup (?)
+  let keyboard = new KeyboardInput();
+  let gamepads = new GamepadInput();
+  let mouse = new MouseInput();
 
-   let paths: PressurePath[] = [];
-   let currentPath: PressurePath = new PressurePath();
+  // Input mapping
+  let inputMap = new InputMap();
 
-   let brush = new HandDrawnBrush();
-   brush.width = 100;
-   brush.subdivisionLength = 32;
-   brush.pressureCurve = n => n * n;
-   
-   let _requestedDraw: number|undefined = undefined;
-   let draw = () => {
-      _requestedDraw = undefined;
+  inputMap.registerAction("steer_left", new GamepadAxisAction(gamepads, 0, GamepadAxis.LeftStickLeft));
+  inputMap.registerAction("steer_right", new GamepadAxisAction(gamepads, 0, GamepadAxis.LeftStickRight));
 
-      graphics.setup();
-   
-      graphics.setFillColor("#fff5dd");
-      graphics.drawRectangle(0, 0, canvas.width, canvas.height, true);
-      
-      graphics.setFillColor("#423627");
+  inputMap.registerAction("accelerate", new GamepadAxisAction(gamepads, 0, GamepadAxis.RightTrigger));
+  inputMap.registerAction("brake", new GamepadAxisAction(gamepads, 0, GamepadAxis.LeftTrigger));
 
-      paths.forEach(path => {
-         brush.drawPressurePath(graphics, path);
-      });
-      
-      brush.drawPressurePath(graphics, currentPath);
-   };
-   let requestDraw = () => {
-      if(_requestedDraw){
-         cancelAnimationFrame(_requestedDraw);
-      }
+  inputMap.registerAction("boost", new GamepadButtonAction(gamepads, 0, GamepadButton.A));
 
-      _requestedDraw = requestAnimationFrame(draw);
-   };
-   requestDraw();
+  // Physics setup
+  let scene = new XPBDScene2D();
+  
+  let car = new Rigidbody2D();
+  let leftFrontWheel = new WheelBody2D();
+  let rightFrontWheel = new WheelBody2D();
+  let leftRearWheel = new WheelBody2D();
+  let rightRearWheel = new WheelBody2D();
 
-   let addPoint = (ev: MouseEvent) => {
-      let p = graphics.canvasToViewport(ev.offsetX, ev.offsetY);
-      currentPath.addPoint(new Vector2(p.x, p.y), runningPressure);
-      
-      requestDraw();
-   };
+  car.mass = 20;
+  car.inertia = 80;
 
-   
+  car.translateTo(0, 0);
+  leftFrontWheel.translateTo(10, -6);
+  leftRearWheel.translateTo(-10, -6);
+  rightFrontWheel.translateTo(10, 6);
+  rightRearWheel.translateTo(-10, 6);
 
-   // Convolution bby
-   let makeSmoothVersion = (path: PressurePath): PressurePath => {
-      if(path.points.length <= 0) return path;
+  scene.addBody(car);
+  scene.addBody(leftFrontWheel);
+  scene.addBody(leftRearWheel);
+  scene.addBody(rightFrontWheel);
+  scene.addBody(rightRearWheel);
 
-      let outpath = new PressurePath();
-      
-      let weights: number[] = [];
+  let leftFrontWheelConstraint = new DistanceConstraint2D(new ConstraintAttachment2D(car, leftFrontWheel.position.clone()), new ConstraintAttachment2D(leftFrontWheel));
+  let leftRearWheelConstraint = new DistanceConstraint2D(new ConstraintAttachment2D(car, leftRearWheel.position.clone()), new ConstraintAttachment2D(leftRearWheel));
+  let rightFrontWheelConconstraint = new DistanceConstraint2D(new ConstraintAttachment2D(car, rightFrontWheel.position.clone()), new ConstraintAttachment2D(rightFrontWheel));
+  let rightRearWheelConstraint = new DistanceConstraint2D(new ConstraintAttachment2D(car, rightRearWheel.position.clone()), new ConstraintAttachment2D(rightRearWheel));
 
-      for(let i = 0; i < 10; i++){
-         let z = (i / 10) * 4 - 2;
+  scene.addConstraint(leftFrontWheelConstraint);
+  scene.addConstraint(leftRearWheelConstraint);
+  scene.addConstraint(rightFrontWheelConconstraint);
+  scene.addConstraint(rightRearWheelConstraint);
+  
 
-         weights.push(Math.exp(-z * z));
-      }
+  scene.substeps = 10;
 
-      // Content doesn't matter, just length
-      let x = [...weights];
-      let y = [...weights];
-      let p = [...weights];
+  scene.addExternalForce((delta: number) => {
+    let inputSteer = inputMap.getAxis("steer_left", "steer_right");
+    let inputAccelerate = inputMap.getActionStrength("accelerate");
+    let inputBrake = inputMap.getActionStrength("brake");
+    let inputBoost = inputMap.isActionPressed("boost");
 
-      for(let i = 0; i < path.points.length - weights.length; i++){
-         for(let j = 0; j < weights.length; j++){
-            x[j] = path.points[i + j].position.x;
-            y[j] = path.points[i + j].position.y;
-            p[j] = path.points[i + j].pressure;
-         }
+    leftFrontWheel.rotation = car.rotation + inputSteer * Math.PI * 0.25;
+    rightFrontWheel.rotation = car.rotation + inputSteer * Math.PI * 0.25;
 
-         outpath.addPoint(
-            new Vector2(
-               MathHelper.weightedAvarage(weights, x),
-               MathHelper.weightedAvarage(weights, y)
-            ),
-            MathHelper.weightedAvarage(weights, p),
-         );
-      }
+    leftRearWheel.rotation = car.rotation;
+    rightRearWheel.rotation = car.rotation;
+    
+    leftRearWheel.wheelVelocity = MathHelper.moveToward(leftRearWheel.wheelVelocity, 200, inputAccelerate * delta * 1500 * leftRearWheel.wheelInverseInertia);
+    rightRearWheel.wheelVelocity = MathHelper.moveToward(rightRearWheel.wheelVelocity, 200, inputAccelerate * delta * 1500 * rightRearWheel.wheelInverseInertia);
 
-      return outpath;
-   };
+    leftRearWheel.wheelVelocity = MathHelper.moveToward(leftRearWheel.wheelVelocity, 0, inputBrake * delta * 2000 * leftRearWheel.wheelInverseInertia);
+    leftFrontWheel.wheelVelocity = MathHelper.moveToward(leftFrontWheel.wheelVelocity, 0, inputBrake * delta * 2000 * leftFrontWheel.wheelInverseInertia);
+    rightRearWheel.wheelVelocity = MathHelper.moveToward(rightRearWheel.wheelVelocity, 0, inputBrake * delta * 2000 * rightRearWheel.wheelInverseInertia);
+    rightFrontWheel.wheelVelocity = MathHelper.moveToward(rightFrontWheel.wheelVelocity, 0, inputBrake * delta * 2000 * rightFrontWheel.wheelInverseInertia);
 
-   let drawing = false;
-   let runningPressure = 1;
-   let runningVelocity = 0;
+    
+    
+    if(inputBoost){
+      var forward = leftRearWheel.basis.getX(new Vector2()).scale(10000);
+      leftRearWheel.addImmediateForce(forward.x, forward.y, delta);
+    }
+  });
 
-   let previousTime = 0;
-   let previousX = 0;
-   let previousY = 0;
+  let trailLength = 1000;
 
-   canvas.addEventListener("mousemove", ev => {
-      let now = window.performance.now();
-      
-      let dt = now - previousTime;
-      let dx = ev.offsetX - previousX;
-      let dy = ev.offsetY - previousY;
-      
-      // Rule of thumb
-      if(Vector2.fSquareLength(dx, dy) < brush.width / 2) return;
-      
-      let vx = dx / dt;
-      let vy = dy / dt;
-      
-      if(dt === 0){
-         vx = 0;
-         vy = 0;
-      }
-      
-      let velocity = Vector2.fLength(vx, vy);
-      
-      runningVelocity = MathHelper.lerp(runningVelocity, velocity, 1);
-      
-      let wantedPressure = 1 / (runningVelocity * 0.4 + 1);
-      // let wantedPressure = 1;
-      
-      runningPressure = MathHelper.lerp(runningPressure, wantedPressure, 1);
-      
-      previousTime = now;
-      previousX = ev.offsetX;
-      previousY = ev.offsetY;
-         
-      if(drawing){
-         addPoint(ev);
-      }
-   });
-   canvas.addEventListener("mousedown", ev => {
-      previousTime = window.performance.now();
-      previousX = ev.offsetX;
-      previousY = ev.offsetY;
-      addPoint(ev);
+  let rightFrontWheelTrail = new RingBuffer<Vector2>(trailLength);
+  let leftFrontWheelTrail = new RingBuffer<Vector2>(trailLength);
+  let rightRearWheelTrail = new RingBuffer<Vector2>(trailLength);
+  let leftRearWheelTrail = new RingBuffer<Vector2>(trailLength);
+  let trailAccumulator = 0;
 
-      drawing = true;
-   });
-   canvas.addEventListener("mouseup", ev => {
-      previousTime = window.performance.now();
-      previousX = ev.offsetX;
-      previousY = ev.offsetY;
+  // Game loop
+  gameLoop((delta) => {
+    keyboard.poll();
+    gamepads.poll();
+    mouse.poll();
+  
+    graphics.setup();
 
-      addPoint(ev);
-      drawing = false;
+    scene.update(delta);
 
-      paths.push(makeSmoothVersion(currentPath));
-      // paths.push(currentPath);
+    trailAccumulator -= delta;
+    if(trailAccumulator < 0){
+      rightFrontWheelTrail.push(rightFrontWheel.position.clone());
+      leftFrontWheelTrail.push(leftFrontWheel.position.clone());
+      rightRearWheelTrail.push(rightRearWheel.position.clone());
+      leftRearWheelTrail.push(leftRearWheel.position.clone());
 
-      currentPath = new PressurePath();
-   });
-   
-   window.addEventListener("keydown", ev => {
-      if(ev.key === "Enter"){
-         paths.push(currentPath);
-         currentPath = new PressurePath();
-      }
-   });
+      trailAccumulator += 0.01;
+    }
+    
+    graphics.setStrokeColor(new Color(0.9, 0.9, 0.9, 1));
+    graphics.setLineWidthInPoints(8);
+    graphics.drawPath(path => {
+      rightFrontWheelTrail.forEach(v => path.lineTo(v.x, v.y));
+    }, false);
+    graphics.drawPath(path => {
+      leftFrontWheelTrail.forEach(v => path.lineTo(v.x, v.y));
+    }, false);
+    graphics.drawPath(path => {
+      rightRearWheelTrail.forEach(v => path.lineTo(v.x, v.y));
+    }, false);
+    graphics.drawPath(path => {
+      leftRearWheelTrail.forEach(v => path.lineTo(v.x, v.y));
+    }, false);
 
-   canvas.addEventListener("click", ev => {
-      let p = graphics.canvasToViewport(ev.offsetX, ev.offsetY);
+    graphics.setStrokeColor(Color.black);
+    graphics.setLineWidthInPoints(1);
 
-      // currentPath.addPoint(new Vector2(p.x, p.y), Math.random() * 0.5 + 0.5);
-      
-      requestDraw();
-   });
-}
+    // Draw the car
+    graphics.push();
+    graphics.translate(car.position.x, car.position.y);
+    graphics.rotate(car.rotation);
+    graphics.drawRectangle(-16, -8, 32, 16, false);
+    graphics.pop();
+    
+    // Draw the wheels
+    graphics.push();
+    graphics.translate(leftFrontWheel.position.x, leftFrontWheel.position.y);
+    graphics.rotate(leftFrontWheel.rotation);
+    graphics.drawRectangle(-4, -2, 8, 4, false);
+    graphics.pop();
+    
+    graphics.push();
+    graphics.translate(leftRearWheel.position.x, leftRearWheel.position.y);
+    graphics.rotate(leftRearWheel.rotation);
+    graphics.drawRectangle(-4, -2, 8, 4, false);
+    graphics.pop();
+    
+    graphics.push();
+    graphics.translate(rightFrontWheel.position.x, rightFrontWheel.position.y);
+    graphics.rotate(rightFrontWheel.rotation);
+    graphics.drawRectangle(-4, -2, 8, 4, false);
+    graphics.pop();
+    
+    graphics.push();
+    graphics.translate(rightRearWheel.position.x, rightRearWheel.position.y);
+    graphics.rotate(rightRearWheel.rotation);
+    graphics.drawRectangle(-4, -2, 8, 4, false);
+    graphics.pop();
 
-
-function signatureStuff2(){
-   let canvas = document.getElementById("canvas") as HTMLCanvasElement;
-   
-   let graphics = new Graphics2D(canvas);
-
-   let backgroundColor = Color.parse("#fff5dd");
-   let foregroundColor = Color.parse("#423627");
-
-   let coolPath0: PressurePath = new PressurePath();
-   let coolPath1: PressurePath = new PressurePath();
-   let coolPath2: PressurePath = new PressurePath();
-   let coolPath3: PressurePath = new PressurePath();
-   let coolPath4: PressurePath = new PressurePath();
-
-   let currentPath: PressurePath = new PressurePath();
-
-   let brush = new HandDrawnBrush();
-   brush.width = 100;
-   brush.subdivisionLength = 32;
-   brush.pressureCurve = n => n * n;
-   
-   let _requestedDraw: number|undefined = undefined;
-   let draw = () => {
-      _requestedDraw = undefined;
-
-      graphics.setup();
-   
-      graphics.setFillColor(backgroundColor.toHexString());
-      graphics.drawRectangle(0, 0, canvas.width, canvas.height, true);
-      
-      graphics.setFillColor(Color.lerp(foregroundColor, backgroundColor, 1 - 0.125 * 0.25).toHexString());
-      brush.drawPressurePath(graphics, coolPath4);
-      graphics.setFillColor(Color.lerp(foregroundColor, backgroundColor, 1 - 0.125).toHexString());
-      brush.drawPressurePath(graphics, coolPath3);
-      graphics.setFillColor(Color.lerp(foregroundColor, backgroundColor, 1 - 0.25).toHexString());
-      brush.drawPressurePath(graphics, coolPath2);
-      graphics.setFillColor(Color.lerp(foregroundColor, backgroundColor, 1 - 0.5).toHexString());
-      brush.drawPressurePath(graphics, coolPath1);
-      graphics.setFillColor(Color.lerp(foregroundColor, backgroundColor, 0).toHexString());
-      brush.drawPressurePath(graphics, coolPath0);
-      
-      brush.drawPressurePath(graphics, currentPath);
-   };
-   let requestDraw = () => {
-      if(_requestedDraw){
-         cancelAnimationFrame(_requestedDraw);
-      }
-
-      _requestedDraw = requestAnimationFrame(draw);
-   };
-   requestDraw();
-
-   let addPoint = (ev: MouseEvent) => {
-      let p = graphics.canvasToViewport(ev.offsetX, ev.offsetY);
-      currentPath.addPoint(new Vector2(p.x, p.y), runningPressure);
-      
-      requestDraw();
-   };
-
-   
-
-   // Convolution bby
-   let makeSmoothVersion = (path: PressurePath): PressurePath => {
-      if(path.points.length <= 0) return path;
-
-      let outpath = new PressurePath();
-      
-      let weights: number[] = [];
-
-      for(let i = 0; i < 100; i++){
-         let z = (i / 10) * 4 - 2;
-
-         weights.push(Math.exp(-z * z));
-      }
-
-      // Content doesn't matter, just length
-      let x = [...weights];
-      let y = [...weights];
-      let p = [...weights];
-
-      for(let i = 0; i < path.points.length - weights.length; i++){
-         for(let j = 0; j < weights.length; j++){
-            x[j] = path.points[i + j].position.x;
-            y[j] = path.points[i + j].position.y;
-            p[j] = path.points[i + j].pressure;
-         }
-
-         outpath.addPoint(
-            new Vector2(
-               MathHelper.weightedAvarage(weights, x),
-               MathHelper.weightedAvarage(weights, y)
-            ),
-            MathHelper.weightedAvarage(weights, p),
-         );
-      }
-
-      return outpath;
-   };
-
-   let drawing = false;
-   let runningPressure = 1;
-   let runningVelocity = 0;
-
-   let previousTime = 0;
-   let previousX = 0;
-   let previousY = 0;
-
-   canvas.addEventListener("mousemove", ev => {
-      let now = window.performance.now();
-      
-      let dt = now - previousTime;
-      let dx = ev.offsetX - previousX;
-      let dy = ev.offsetY - previousY;
-      
-      // Rule of thumb
-      if(Vector2.fSquareLength(dx, dy) < brush.width / 2) return;
-      
-      let vx = dx / dt;
-      let vy = dy / dt;
-      
-      if(dt === 0){
-         vx = 0;
-         vy = 0;
-      }
-      
-      let velocity = Vector2.fLength(vx, vy);
-      
-      runningVelocity = MathHelper.lerp(runningVelocity, velocity, 1);
-      
-      let wantedPressure = 1 / (runningVelocity * 0.4 + 1);
-      // let wantedPressure = 1;
-      
-      runningPressure = MathHelper.lerp(runningPressure, wantedPressure, 1);
-      
-      previousTime = now;
-      previousX = ev.offsetX;
-      previousY = ev.offsetY;
-         
-      if(drawing){
-         addPoint(ev);
-      }
-   });
-   canvas.addEventListener("mousedown", ev => {
-      previousTime = window.performance.now();
-      previousX = ev.offsetX;
-      previousY = ev.offsetY;
-      addPoint(ev);
-
-      drawing = true;
-   });
-   canvas.addEventListener("mouseup", ev => {
-      previousTime = window.performance.now();
-      previousX = ev.offsetX;
-      previousY = ev.offsetY;
-
-      addPoint(ev);
-      drawing = false;
-
-
-      let makeSmoothWithOffset = (offset: number, path: PressurePath) => {
-         let newPath = new PressurePath();
-
-         newPath.points = path.points.map(point => {
-            return {position: point.position.clone().add(new Vector2(offset, offset)), pressure: point.pressure}
-         });
-
-         return makeSmoothVersion(newPath);
-      }
-
-      let smooth = makeSmoothVersion(currentPath);
-
-      coolPath0 = smooth;
-      coolPath1 = makeSmoothWithOffset(10, coolPath0);
-      coolPath2 = makeSmoothWithOffset(20, coolPath1);
-      coolPath3 = makeSmoothWithOffset(30, coolPath2);
-      coolPath4 = makeSmoothWithOffset(40, coolPath3);
-
-      currentPath = new PressurePath();
-   });
-}
-
-document.addEventListener("DOMContentLoaded", async ()=>{
-   signatureStuff2();
+  });
 });

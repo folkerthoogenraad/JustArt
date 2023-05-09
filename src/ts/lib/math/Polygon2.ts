@@ -1,6 +1,6 @@
 import { Vector2 } from "./Vector2";
 
-export class Polygon {
+export class Polygon2 {
     vertices: Vector2[];
 
     constructor(){
@@ -29,8 +29,8 @@ export class Polygon {
         return this.getPoint(i).clone().add(this.getPoint(i + 1)).scale(0.5);
     }
 
-    expanded(n: number): Polygon{
-        let polygon = new Polygon();
+    expanded(n: number): Polygon2{
+        let polygon = new Polygon2();
         polygon.vertices = [...this.vertices];
 
         for(let i = 0; i < polygon.vertices.length; i++){

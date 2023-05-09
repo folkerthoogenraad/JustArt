@@ -16,6 +16,12 @@ export class Vector2 {
     }
     addX(x: number) {this.x += x; return this; }
     addY(y: number) {this.y += y; return this; }
+    addScaled(other: Vector2, scaler: number) {
+        this.x += other.x * scaler;
+        this.y += other.y * scaler;
+
+        return this;
+    }
 
     sub(other: Vector2) {
         this.x -= other.x;
@@ -43,7 +49,7 @@ export class Vector2 {
     }
     divX(x: number) {this.x /= x; return this; }
     divY(y: number) {this.y /= y; return this; }
-    
+
     scale(scaler: number) {
         this.x *= scaler;
         this.y *= scaler;
@@ -108,7 +114,7 @@ export class Vector2 {
     }
 
     get angle() {
-        return Math.atan2(this.y, this.x);
+        return Vector2.fAngle(this.x, this.y);
     }
 
     distanceTo(other: Vector2) {
@@ -119,15 +125,28 @@ export class Vector2 {
     }
 
     static direction(a: Vector2, b: Vector2) {
-        return b.clone().sub(a);
+        return this.directionOut(a, b, new Vector2());
+    }
+    static directionOut(a: Vector2, b: Vector2, out: Vector2) {
+        let dx = Vector2.dx(a, b);
+        let dy = Vector2.dy(a, b);
+
+        out.x = dx;
+        out.y = dy;
+
+        return out;
     }
     static tangent(a: Vector2, b: Vector2) {
-        return Vector2.direction(a, b);
+        return Vector2.tangentOut(a, b, new Vector2());
+    }
+    static tangentOut(a: Vector2, b: Vector2, out: Vector2) {
+        return Vector2.directionOut(a, b, out);
     }
     static normal(a: Vector2, b: Vector2) {
-        let direction = Vector2.direction(a, b);
-
-        return direction.perpendicularize();
+        return Vector2.normalOut(a, b, new Vector2());
+    }
+    static normalOut(a: Vector2, b: Vector2, out: Vector2) {
+        return Vector2.directionOut(a, b, out).perpendicularize();
     }
     static distance(a: Vector2, b: Vector2) {
         return Vector2.fDistance(a.x, a.y, b.x, b.y);
@@ -185,6 +204,9 @@ export class Vector2 {
     static fSquareLength(x: number, y: number){
         return this.fDot(x, y, x, y);
     }
+    static fAngle(x: number, y: number){
+        return Math.atan2(y, x);
+    }
     static fLength(x: number, y: number){
         return Math.sqrt(this.fSquareLength(x, y));
     }
@@ -192,4 +214,16 @@ export class Vector2 {
     clone() {
         return new Vector2(this.x, this.y);
     }
+
+    toString(){
+        return `(${this.x},${this.y})`;
+    }
+    toShortString(){
+        return `(${Math.round(this.x * 100) / 100},${Math.round(this.y * 100) / 100})`;
+    }
+
+    static readonly zero: Vector2 = new Vector2(0, 0);
+    static readonly one: Vector2 = new Vector2(1, 1);
+    static readonly unitX: Vector2 = new Vector2(1, 0);
+    static readonly unitY: Vector2 = new Vector2(0, 1);
 }

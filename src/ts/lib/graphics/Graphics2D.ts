@@ -3,10 +3,20 @@
 import { Sampler } from "lib/pixels/Sampler";
 import { DocumentSettings, DocumentUnits } from "lib/settings/DocumentSettings";
 import { ViewportFit, ViewportSettings } from "lib/settings/ViewportSettings";
+import { Color } from "./Color";
 
 function generateDocumentSettingsFromCanvas(canvas: UseableCanvas){
-    return new DocumentSettings(canvas.width, canvas.height, DocumentSettings.DefaultDPI, DocumentUnits.px);
+    let width = canvas.width;
+    let height = canvas.height;
+
+    if (canvas instanceof HTMLCanvasElement){
+        width = canvas.offsetWidth * window.devicePixelRatio;
+        height = canvas.offsetHeight * window.devicePixelRatio;
+    }
+
+    return new DocumentSettings(width, height, DocumentSettings.DefaultDPI * window.devicePixelRatio, DocumentUnits.px);
 }
+
 function generateViewportSettingsFromCanvas(canvas: UseableCanvas){
     return new ViewportSettings(0, 0, canvas.width, canvas.height, ViewportFit.Contain);
 }
@@ -88,14 +98,29 @@ export class Graphics2D {
     // ======================================================= //
     // Settings
     // ======================================================= //
-    setFillColor(color: string){
-        this.context.fillStyle = color;
+    setFillColor(color: string): void;
+    setFillColor(color: Color): void;
+    setFillColor(color: Color|string): void{
+        if(typeof color === "string"){
+            this.context.fillStyle = color;
+        }
+        else{
+            this.context.fillStyle = color.toRGBAString();
+        }
     }
     setFillPattern(pattern: CanvasPattern){
         this.context.fillStyle = pattern;
     }
-    setStrokeColor(color: string){
-        this.context.strokeStyle = color;
+
+    setStrokeColor(color: string): void;
+    setStrokeColor(color: Color): void;
+    setStrokeColor(color: Color|string){
+        if(typeof color === "string"){
+            this.context.strokeStyle = color;
+        }
+        else{
+            this.context.strokeStyle = color.toRGBAString();
+        }
     }
     setLineWidthInPoints(width: number){
         this.context.lineWidth = this.pointSize * width;
@@ -208,6 +233,9 @@ export class Graphics2D {
         this.context.lineTo(x2, y2);
 
         this.context.stroke();
+    }
+    drawVector(ox: number, oy: number, vx: number, vy: number) {
+        this.drawLine(ox, oy, ox + vx, oy + vy);
     }
 
     drawPath(path: Path2D, fill: boolean): Path2D;

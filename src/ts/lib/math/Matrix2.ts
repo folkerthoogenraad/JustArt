@@ -32,7 +32,7 @@ export class Matrix2 {
     // Getters
     // ============================================================= //
     get determinant(){
-        return Vector2.fCross(this.xx, this.yy, this.yx, this.yy);
+        return Vector2.fCross(this.xx, this.xy, this.yx, this.yy);
     }
 
     // ============================================================= //
@@ -59,11 +59,19 @@ export class Matrix2 {
 
         return this;
     }
+    getX(out: Vector2){
+        out.apply(this.xx, this.xy);
+        return out;
+    }
     setY(x: number, y: number){
         this.yx = x;
         this.yy = y;
 
         return this;
+    }
+    getY(out: Vector2){
+        out.apply(this.yx, this.yy);
+        return out;
     }
     inverse(){
         let determinant = this.determinant;

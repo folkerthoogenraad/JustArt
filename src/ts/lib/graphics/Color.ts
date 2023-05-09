@@ -230,6 +230,9 @@ export class Color {
     static readonly cyan = new Color(0, 1, 1, 1);
     static readonly magenta = new Color(1, 0, 1, 1);
 
+    static readonly black = new Color(0, 0, 0, 1);
+    static readonly white = new Color(1, 1, 1, 1);
+
     static readonly namedColors: { [key: string]: Color } = {
         "red": this.red,
         "green": this.green,
@@ -238,5 +241,8 @@ export class Color {
         "yellow": this.yellow,
         "cyan": this.cyan,
         "magenta": this.magenta,
+
+        "black": this.black,
+        "white": this.white,
     };
 }

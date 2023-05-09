@@ -1,5 +1,5 @@
-import { Polygon } from "expirimental/math/Polygon";
-import { Vector2 } from "expirimental/math/Vector2";
+import { Polygon2 } from "lib/math/Polygon2";
+import { Vector2 } from "lib/math/Vector2";
 import { Color } from "lib/graphics/Color";
 import { Graphics2D } from "lib/graphics/Graphics2D";
 import { DocumentSettings, DocumentUnits } from "lib/settings/DocumentSettings";
@@ -115,7 +115,7 @@ function drawPolygon(positions: number[], stroke: string, fill: string){
    }
 }
 
-function drawPolygonFull(polygon: Polygon, stroke?: string, fill?: string, edgenormals?: string, pointnormals?: string){
+function drawPolygonFull(polygon: Polygon2, stroke?: string, fill?: string, edgenormals?: string, pointnormals?: string){
    let t = polygon.vertices.flatMap(p => [p.x, p.y]);
    
    if(fill){
@@ -248,9 +248,9 @@ document.addEventListener("DOMContentLoaded", ()=>{
    drawVertex(0.5, 0.25, "rgb(128, 0, 0)");
    drawVertex(-2, 0.333, "rgb(0, 64, 128)");*/
 
-   let polygon = new Polygon();
+   let polygon = new Polygon2();
    
-   let expandedPolygons: Polygon[] = [
+   let expandedPolygons: Polygon2[] = [
    ];
 
    // polygon.vertices.push(new Vector2(1.2499999813735494, 0.46874999301508113));

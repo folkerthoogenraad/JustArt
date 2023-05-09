@@ -1,8 +1,8 @@
 import { Graphics2D } from "lib/graphics/Graphics2D";
 import { PressurePath } from "./PressurePath";
-import { Vector2 } from "expirimental/math/Vector2";
-import { InterpolationCurve, InterpolationCurves } from "expirimental/math/InterpolationCurve";
-import { MathHelper } from "expirimental/math/MathHelper";
+import { Vector2 } from "lib/math/Vector2";
+import { InterpolationCurve, InterpolationCurves } from "lib/math/InterpolationCurve";
+import { MathHelper } from "lib/math/MathHelper";
 
 export class HandDrawnBrush {
     pressureCurve: InterpolationCurve = InterpolationCurves.Linear;
