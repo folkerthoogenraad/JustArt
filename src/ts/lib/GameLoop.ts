@@ -16,3 +16,14 @@ export function gameLoop(update: (delta: number) => void){
 
     requestAnimationFrame(frame);
 }
+
+export function waitFor(seconds: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+        setTimeout(() => resolve(), seconds * 1000);
+    });
+}
+export function waitForNextFrame(): Promise<void> {
+    return new Promise((resolve, reject) => {
+        requestAnimationFrame(() => resolve());
+    });
+}

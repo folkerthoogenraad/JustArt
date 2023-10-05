@@ -5,7 +5,7 @@ import { ConstraintAttachment2D } from "./ConstraintAttachment2D";
 import { MathHelper } from "lib/math/MathHelper";
 
 
-export class AxleCosntraint2D extends Constraint2D {
+export class AxleConstraint2D extends Constraint2D {
     compliance: number;
 
     from: Rigidbody2D;
@@ -14,6 +14,9 @@ export class AxleCosntraint2D extends Constraint2D {
     lambda: number = 0;
 
     gearRatio: number = 1;
+
+    angleOffset: number = 0;
+    anglePlay: number = 0;
 
     constructor(from: Rigidbody2D, to: Rigidbody2D, compliance: number = 0) {
         super();
@@ -30,10 +33,14 @@ export class AxleCosntraint2D extends Constraint2D {
 
     apply(delta: number): void {
         let diff = MathHelper.shortestAngle(
-            MathHelper.normalizeAngle(this.from.rotation * this.gearRatio), 
+            MathHelper.normalizeAngle(this.from.rotation * this.gearRatio + this.angleOffset), 
             MathHelper.normalizeAngle(this.to.rotation));
 
-        if(diff == 0) return;
+        if(Math.abs(diff) <= this.anglePlay) {
+            return;
+        }
+
+        diff -= Math.sign(diff) * this.anglePlay;
 
         let w1 = this.from.inverseInertia;
         let w2 = this.to.inverseInertia * this.gearRatio;

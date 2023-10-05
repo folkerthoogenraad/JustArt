@@ -1,3 +1,4 @@
+import { Rect2 } from "lib/math/Rect2";
 import { Color } from "../graphics/Color";
 
 export type ColorImage = ImageGrid<Color>;
@@ -71,6 +72,15 @@ export class ImageGrid<T>{
     foreachPixel(lambda: (color: T, x: number, y: number) => void){
         for(let i = 0; i < this.width; i++){
             for(let j = 0; j < this.height; j++){
+                lambda(this.getPixel(i, j), i, j);
+            }
+        }
+        return this;
+    }
+
+    foreachPixelIn(rect: Rect2, lambda: (color: T, x: number, y: number) => void){
+        for(let i = Math.max(0, Math.floor(rect.left)); i < this.width && i < rect.right; i++){
+            for(let j = Math.max(0, Math.floor(rect.top)); j < this.height && j < rect.bottom; j++){
                 lambda(this.getPixel(i, j), i, j);
             }
         }

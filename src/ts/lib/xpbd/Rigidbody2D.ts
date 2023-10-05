@@ -127,6 +127,25 @@ export class Rigidbody2D {
         this.position.x += ax * delta * delta;
         this.position.y += ay * delta * delta;
     }
+
+    addImmediateTorque(torque: number, delta: number){
+        // F = m * a
+        // a = F / m
+
+        let a = torque * this.inverseInertia;
+
+        this.angularVelocity += a * delta;
+        this.rotation += a * delta * delta;
+    }
+    addAngularImpulse(torque: number, delta: number){
+        // F = m * a
+        // a = F / m
+
+        let d = torque * this.inverseInertia;
+
+        this.angularVelocity += d / delta;
+        this.rotation += d;
+    }
     addImmediateImpulse(ix: number, iy: number, delta: number){
         let dx = ix * this.inverseMass;
         let dy = iy * this.inverseMass;
