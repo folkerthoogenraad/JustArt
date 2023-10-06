@@ -91,6 +91,15 @@ export class Vector2 {
 
         return this;
     }
+    rotate(angle: number) {
+        let s = Math.sin(angle);
+        let c = Math.cos(angle);
+
+        let x = this.x * c - this.y * s;
+        let y = this.x * s + this.y * c;
+
+        return this.apply(x, y);
+    }
 
     perpendicularize(){
         let t = this.y;

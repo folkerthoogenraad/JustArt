@@ -1,8 +1,19 @@
-interface HSL {
+export interface HSL {
     hue: number,
     saturation: number,
     lightness: number,
     alpha?: number
+}
+
+export interface OkLab {
+    L: number; // lightness
+    a: number; // green/red
+    b: number; // blue/yellow
+}
+export interface OkLabPolar {
+    lightness: number;
+    chroma: number;
+    hue: number;
 }
 
 export class Color {
@@ -12,6 +23,11 @@ export class Color {
     readonly a: number;
 
     constructor(r: number, g: number, b: number, a: number) {
+        if(r < 0) r = 0;
+        if(g < 0) g = 0;
+        if(b < 0) b = 0;
+        if(a < 0) a = 0;
+
         this.r = r;
         this.g = g;
         this.b = b;
@@ -48,8 +64,14 @@ export class Color {
     add(other: Color) {
         return new Color(this.r + other.r, this.g + other.g, this.b + other.b, this.a);
     }
+    sub(other: Color) {
+        return new Color(this.r - other.r, this.g - other.g, this.b - other.b, this.a);
+    }
     mul(other: Color) {
         return new Color(this.r * other.r, this.g * other.g, this.b * other.b, this.a);
+    }
+    div(other: Color) {
+        return new Color(this.r / other.r, this.g / other.g, this.b / other.b, this.a);
     }
 
     setGrayscale(v: number) {
@@ -103,6 +125,34 @@ export class Color {
             alpha: this.a
         };
     }
+    toOkLab(): OkLab {
+        let l = 0.4122214708 * this.r + 0.5363325363 * this.g + 0.0514459929 * this.b;
+        let m = 0.2119034982 * this.r + 0.6806995451 * this.g + 0.1073969566 * this.b;
+        let s = 0.0883024619 * this.r + 0.2817188376 * this.g + 0.6299787005 * this.b;
+
+        let l_ = Math.pow(l, 1 / 3);
+        let m_ = Math.pow(m, 1 / 3);
+        let s_ = Math.pow(s, 1 / 3);
+
+        return {
+            L: 0.2104542553*l_ + 0.7936177850*m_ - 0.0040720468*s_,
+            a: 1.9779984951*l_ - 2.4285922050*m_ + 0.4505937099*s_,
+            b: 0.0259040371*l_ + 0.7827717662*m_ - 0.8086757660*s_,
+        };
+    }
+    toOkLabPolar(): OkLabPolar {
+        const lab = this.toOkLab();
+
+        const chroma = Math.sqrt(lab.a * lab.a + lab.b * lab.b);
+        const hue = Math.atan2(lab.b, lab.a);
+
+        return {
+            lightness: lab.L,
+            chroma,
+            hue
+        };
+    }
+
     toHexString(): string{
         let c = (n: number) => Math.round(n * 255).toString(16);
 
@@ -130,6 +180,22 @@ export class Color {
 
         return `hsl(${n(hsl.hue)},${n(hsl.saturation * 100)}%,${n(hsl.lightness * 100)}%, ${this.a})`;
     }
+    toLinearColor(): Color {
+        return new Color(
+            Math.pow(this.r, 2.2),
+            Math.pow(this.g, 2.2),
+            Math.pow(this.b, 2.2),
+            this.a
+        );
+    }
+    toGammaColor(): Color {
+        return new Color(
+            Math.pow(this.r, 1 / 2.2),
+            Math.pow(this.g, 1 / 2.2),
+            Math.pow(this.b, 1 / 2.2),
+            this.a
+        );
+    }
     static fromRGB255(r: number, g: number, b: number) {
         return new Color(r / 255, g / 255, b / 255, 1);
     }
@@ -156,6 +222,32 @@ export class Color {
         let f = (n: number, k = (n + h / 30) % 12) => l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
 
         return new Color(f(0), f(8), f(4), alpha ?? 1);
+    }
+    static fromOkLab(lab: OkLab): Color {
+        let l_ = lab.L + 0.3963377774 * lab.a + 0.2158037573 * lab.b;
+        let m_ = lab.L - 0.1055613458 * lab.a - 0.0638541728 * lab.b;
+        let s_ = lab.L - 0.0894841775 * lab.a - 1.2914855480 * lab.b;
+
+        let l = l_ * l_ * l_;
+        let m = m_ * m_ * m_;
+        let s = s_ * s_ * s_;
+
+        return new Color(
+            +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+            -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+            -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s,
+            1
+        );
+    }
+    static fromOkLabPolar(lab: OkLabPolar): Color {
+        let a = lab.chroma * Math.cos(lab.hue);
+        let b = lab.chroma * Math.sin(lab.hue);
+
+        return Color.fromOkLab({
+            L: lab.lightness,
+            a,
+            b
+        });
     }
 
     static fromHexString(hex: string): Color{
@@ -233,6 +325,8 @@ export class Color {
     static readonly black = new Color(0, 0, 0, 1);
     static readonly white = new Color(1, 1, 1, 1);
 
+    static readonly transparent = new Color(0, 0, 0, 0);
+
     static readonly namedColors: { [key: string]: Color } = {
         "red": this.red,
         "green": this.green,
@@ -244,5 +338,7 @@ export class Color {
 
         "black": this.black,
         "white": this.white,
+
+        "transparent": this.transparent,
     };
 }

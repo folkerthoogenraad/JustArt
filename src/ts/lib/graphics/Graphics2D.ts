@@ -4,6 +4,7 @@ import { Sampler } from "lib/pixels/Sampler";
 import { DocumentSettings, DocumentUnits } from "lib/settings/DocumentSettings";
 import { ViewportFit, ViewportSettings } from "lib/settings/ViewportSettings";
 import { Color } from "./Color";
+import { Rect2 } from "lib/math/Rect2";
 
 function generateDocumentSettingsFromCanvas(canvas: UseableCanvas){
     let width = canvas.width;
@@ -84,14 +85,12 @@ export class Graphics2D {
         // Viewport shouldn't have a width and height, but just one type of unit (height?) that scales this automatically based on factors... (landscape/portrait?)
         // Then we can also eliminate one of the viewport fit categories right? Because we either match height or width
         this.context.scale(1 / (this._viewportSettings.width / 2), 1 / (this._viewportSettings.height / 2));
-        
-        
+
         if(this._viewportSettings.fit !== ViewportFit.Fill){
             this.context.scale(aspectRatio, 1);
         }
 
         this.context.translate(-this._viewportSettings.centerX, -this._viewportSettings.centerY);
-        
     }
 
 
@@ -100,12 +99,13 @@ export class Graphics2D {
     // ======================================================= //
     setFillColor(color: string): void;
     setFillColor(color: Color): void;
-    setFillColor(color: Color|string): void{
-        if(typeof color === "string"){
-            this.context.fillStyle = color;
+    setFillColor(color: CanvasGradient): void;
+    setFillColor(color: Color|string|CanvasGradient): void{
+        if(color instanceof Color){
+            this.context.fillStyle = color.toRGBAString();
         }
         else{
-            this.context.fillStyle = color.toRGBAString();
+            this.context.fillStyle = color;
         }
     }
     setFillPattern(pattern: CanvasPattern){
@@ -114,12 +114,13 @@ export class Graphics2D {
 
     setStrokeColor(color: string): void;
     setStrokeColor(color: Color): void;
-    setStrokeColor(color: Color|string){
-        if(typeof color === "string"){
-            this.context.strokeStyle = color;
+    setStrokeColor(color: CanvasGradient): void;
+    setStrokeColor(color: Color|string|CanvasGradient){
+        if(color instanceof Color){
+            this.context.strokeStyle = color.toRGBAString();
         }
         else{
-            this.context.strokeStyle = color.toRGBAString();
+            this.context.strokeStyle = color;
         }
     }
     setLineWidthInPoints(width: number){
@@ -347,5 +348,13 @@ export class Graphics2D {
             canvas.width = canvas.offsetWidth;
             canvas.height = canvas.offsetHeight;
         });
+    }
+
+    getViewportRectangle(){
+        return this.viewportSettings.getViewportBounds();
+    }
+    
+    getDocumentRectangle(){
+        return this.viewportSettings.getDocumentBounds(this.documentSettings);
     }
 }
