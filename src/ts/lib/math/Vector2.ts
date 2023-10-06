@@ -101,6 +101,22 @@ export class Vector2 {
         return this;
     }
 
+    rotate(angle: number){
+        let x = this.x;
+        let y = this.y;
+
+        let s = Math.sin(angle);
+        let c = Math.cos(angle);
+
+        let nx = c * x - s * y;
+        let ny = s * x + c * y;
+
+        this.x = nx;
+        this.y = ny;
+
+        return this;
+    }
+
     get normalized() {
         return this.clone().normalize();
     }

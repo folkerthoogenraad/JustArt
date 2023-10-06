@@ -334,4 +334,18 @@ export class Graphics2D {
     get documentSettings(){
         return this._documentSettings;
     }
+
+    // ======================================================= //
+    // Helpers
+    // ======================================================= //
+    setupResizing() {
+        window.addEventListener("resize", () => {
+            let canvas = this.canvas;
+
+            if(!(canvas instanceof HTMLCanvasElement)) return;
+
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+        });
+    }
 }
