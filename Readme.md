@@ -1,52 +1,66 @@
-# Quality rendering library
-This is a nice quality rendering library
+# JustArt
+A quality rendering library, running in your web browser.
 
-## Images
-The images part of this library:
-### Loading
-```JS
-let image = await ImageLoader.getImageFromURL(url);
+## Features
+ * Easy drawing on a web canvas
+ * Adjusting viewports with automatic fitting
+ * Easy document sizing for print and DPI settings
+
+## Setup
+To setup, import the classes you need from the library:
+```TS
+import { Graphics2D } from "@justfolkert/just-art"
 ```
 
-### Modifying pixels
-```JS
-let grid = ImageLoader.getImageGridFromImage(image);
+Drawing to a canvas, simply use:
+```TS
+// Setup the graphics from a canvas
+let graphics = new Graphics2D({ canvas: document.getElementById("my-canvas") });
 
-grid.getPixel(...);
-grid.setPixel(...);
-grid.map(...);
-grid.mapSelf(...);
+// Set the stroke color and line width
+graphics.setStrokeColor("green");
+graphics.setLineWidthInPoints(2);
 
-let image = ImageLoader.getImageFromGrid(grid);
+// Draw a line
+graphics.drawLine(10, 10, 128, 128);
 ```
 
-## Drawing
-Simple setup, creates a document of the size of the canvas and a viewport with that same size.
+## Document settings
+If you don't specify any document, by default it will use the actual size of the canvas (by css rules basically) as the size of the document. But, you can also specify a specific size you want the document to be. This way, the canvas will keep the width and height.
+```TS
+// 30x20cm, 300 dpi document
+let documentSettings = new DocumentSettings(30, 20, 300, DocumentUnits.cm);
 
-```JS
-let graphics = new Graphics2D(canvas);
+let graphics = new Graphics2D({
+    canvas,
+    documentSettings
+});
 ```
 
-```JS
-// 300 dpi, 30x20cm document
-let document = new DocumentSettings(30, 20, 300, DocumentUnits.cm);
+The `DocumentSettings` also provides a few presets, like `DocumentSettings.A4Portrait` and `DocumentSettings.Screen4K`.
 
-let graphics = new Graphics2D(canvas, document);
-```
+## Viewport settings
+The viewport is the drawable coordinate area. This can be used when drawing to have a fixed size area, regardless of the document size (and dpi). By default, the viewport is equal to the size of the canvas at the creation of the `Graphics2D` (meaning, the width the actual width and the height too).
 
-```JS
-// 300 dpi, 30x20cm document
-let document = new DocumentSettings(30, 20, 300, DocumentUnits.cm);
-
-// from -1 to 1 on both axis
-// ViewportFit = object-fit css, 
-//  - Fill = fill everything, don't keep aspect ratio
+```TS
+// ViewportFit is similar to object-fit css, 
+//  - Fill = fill everything, stretch and don't keep aspect ratio
 //  - Contain = Find biggest rectangle fitting inside the canvas
-//  - cover = Find biggest rectangle covering the whole canvas
-let viewport = new ViewportSettings(-1, -1, 1, 1, ViewportFit.Contain);
+//  - Cover = Find biggest rectangle covering the whole canvas
+//  - MatchWidth = Set the width as fixed, and the height based on the aspect ratio
+//  - MatchHeight = Set the height as fixed, and the width based on the aspect ratio
 
-let graphics = new Graphics2D(canvas, document, viewport);
+// Viewport from -1 to 1 on both axis
+let viewportSettings = new ViewportSettings(-1, -1, 1, 1, ViewportFit.Contain);
 
-// You can also set it later
-graphics.setViewportSettings(viewport);
+let graphics = new Graphics2D({
+    canvas,
+    viewportSettings
+});
 ```
+
+The `ViewportSettings` also provides some nice convenience features, like `ViewportSettings.create` or `ViewportSettings.centered` to specify a position and width + height instead.
+
+
+## Credits
+Created by Folkert Hoogenraad
