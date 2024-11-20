@@ -7,7 +7,7 @@ import { Matrix2 } from "./math/Matrix2";
 import { Polygon2 } from "./math/Polygon2";
 import { Rect2 } from "./math/Rect2";
 import { Vector2 } from "./math/Vector2";
-import { DocumentSettings } from "./settings/DocumentSettings";
+import { DocumentSettings, DocumentUnits } from "./settings/DocumentSettings";
 import { ViewportFit, ViewportSettings } from "./settings/ViewportSettings";
 
 export {
@@ -16,6 +16,7 @@ export {
     ViewportFit,
     ViewportSettings,
     DocumentSettings,
+    DocumentUnits,
 
     BezierCurve,
     Vector2,

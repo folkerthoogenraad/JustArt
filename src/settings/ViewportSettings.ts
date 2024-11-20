@@ -57,11 +57,14 @@ export class ViewportSettings{
         );
     }
 
-    getDocumentBounds(documentSettings: DocumentSettings){
+    /**
+     * Gets the viewport bounds given an aspect ratio.
+     * @param aspectRatio The aspect ratio as width / height
+     */
+    getViewportBoundsForAspectRatio(documentAspectRatio: number){
         let width = this.width;
         let height = this.height;
 
-        let documentAspectRatio = documentSettings.widthInPixels / documentSettings.heightInPixels; 
         let viewportAspectRatio = this.width / this.height; 
 
         let aspectRatio = documentAspectRatio / viewportAspectRatio;
@@ -92,14 +95,14 @@ export class ViewportSettings{
         );
     }
 
-    getViewportSize(value: number, unit: DocumentUnits, documentSettings: DocumentSettings) {
-        // TODO
+    getViewportBoundsForDocument(documentSettings: DocumentSettings){
+        return this.getViewportBoundsForAspectRatio(documentSettings.widthInPixels / documentSettings.heightInPixels);
     }
 
     getPointSize(documentSettings: DocumentSettings){
         let nx = 1 / documentSettings.widthInPixels;
 
-        let bounds = this.getDocumentBounds(documentSettings);
+        let bounds = this.getViewportBoundsForDocument(documentSettings);
 
         return bounds.width * nx;
     }
@@ -108,7 +111,7 @@ export class ViewportSettings{
         let nx = documentPixelX / documentSettings.widthInPixels;
         let ny = documentPixelY / documentSettings.heightInPixels;
 
-        let bounds = this.getDocumentBounds(documentSettings);
+        let bounds = this.getViewportBoundsForDocument(documentSettings);
 
         return {
             x: bounds.x + bounds.width * nx,
@@ -116,7 +119,7 @@ export class ViewportSettings{
         }
     }
     getDocumentPositionFromViewportPosition(viewportX: number, viewportY: number, documentSettings: DocumentSettings){
-        let bounds = this.getDocumentBounds(documentSettings);
+        let bounds = this.getViewportBoundsForDocument(documentSettings);
 
         let nx = (viewportX - bounds.x) / bounds.width;
         let ny = (viewportY - bounds.y) / bounds.height;

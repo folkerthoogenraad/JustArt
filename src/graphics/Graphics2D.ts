@@ -85,7 +85,7 @@ export class Graphics2D {
         this.context.clearRect(0, 0, this.width, this.height);
         this.context.scale(this.width, this.height);
 
-        let bounds = this._viewportSettings.getDocumentBounds(this._documentSettings);
+        let bounds = this._viewportSettings.getViewportBoundsForDocument(this._documentSettings);
 
         this.context.scale(1 / bounds.width, 1 / bounds.height);
         this.context.translate(-bounds.x, -bounds.y);
@@ -370,6 +370,6 @@ export class Graphics2D {
         return this.viewportSettings.getViewportBounds();
     }
     getDocumentRectangle(){
-        return this.viewportSettings.getDocumentBounds(this.documentSettings);
+        return this.viewportSettings.getViewportBoundsForDocument(this.documentSettings);
     }
 }
