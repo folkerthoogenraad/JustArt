@@ -1,5 +1,6 @@
 import { Color } from "./graphics/Color";
 import { Graphics2D } from "./graphics/Graphics2D";
+import { TextHorizontalAlignment, TextVerticalAlignment } from "./graphics/TextAlignment";
 import { BezierCurve } from "./math/BezierCurve";
 import { InterpolationCurve, InterpolationCurves, SampledInterpolationCurve } from "./math/InterpolationCurve";
 import { MathHelper } from "./math/MathHelper";
@@ -17,7 +18,10 @@ export {
     ViewportSettings,
     DocumentSettings,
     DocumentUnits,
-
+    
+    TextHorizontalAlignment, 
+    TextVerticalAlignment,
+    
     BezierCurve,
     Vector2,
     Rect2,

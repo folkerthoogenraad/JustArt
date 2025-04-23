@@ -3,6 +3,7 @@
 import { DocumentSettings, DocumentUnits } from "../settings/DocumentSettings";
 import { ViewportFit, ViewportSettings } from "../settings/ViewportSettings";
 import { Color } from "./Color";
+import { TextHorizontalAlignment, TextMeasurement, TextVerticalAlignment } from "./TextAlignment";
 
 function generateDocumentSettingsFromCanvas(canvas: UseableCanvas){
     let width = canvas.width;
@@ -17,7 +18,15 @@ function generateDocumentSettingsFromCanvas(canvas: UseableCanvas){
 }
 
 function generateViewportSettingsFromCanvas(canvas: UseableCanvas){
-    return new ViewportSettings(0, 0, canvas.width, canvas.height, ViewportFit.Contain);
+    let width = canvas.width;
+    let height = canvas.height;
+
+    if (canvas instanceof HTMLCanvasElement){
+        width = canvas.offsetWidth * window.devicePixelRatio;
+        height = canvas.offsetHeight * window.devicePixelRatio;
+    }
+
+    return new ViewportSettings(0, 0, width, height, ViewportFit.Contain);
 }
 
 type UseableCanvas = HTMLCanvasElement|OffscreenCanvas;
@@ -42,6 +51,11 @@ export class Graphics2D {
     private imageSmoothingEnabled: boolean;
     private _documentSettings: DocumentSettings;
     private _viewportSettings: ViewportSettings;
+
+    private _font: string = "arial";
+    private _fontSize: number = 10;
+    private _textHorizontalAlignment: TextHorizontalAlignment = TextHorizontalAlignment.Left;
+    private _textVerticalAlignment: TextVerticalAlignment = TextVerticalAlignment.Top;
 
     constructor(settings: Graphics2DSettings){
         this.canvas = settings.canvas;
@@ -69,9 +83,11 @@ export class Graphics2D {
             }
         });
 
-
         this.context.lineCap = "round";
         this.context.miterLimit = 0.1;
+
+        this.setFont("Tahoma");
+        this.setFontSize(10);
 
         this.setup();
     }
@@ -150,6 +166,35 @@ export class Graphics2D {
     }
     setLineWidth(width: number){
         this.context.lineWidth = width;
+    }
+    setFont(font: string){
+        this._font = font;
+        this.context.font = `1px ${this._font}`;
+        this.context.textAlign = "left";
+        this.context.textBaseline = "top";
+    }
+    setFontSize(size: number){
+        this._fontSize = size;
+    }
+    setFontSizeInPoints(size: number){
+        this._fontSize = this.pointSize * size;
+    }
+    setTextHorizontalAlignment(align: TextHorizontalAlignment){
+        this._textHorizontalAlignment = align;
+    }
+    setTextVerticalAlignment(align: TextVerticalAlignment){
+        this._textVerticalAlignment = align;
+    }
+    measureText(text: string): TextMeasurement{ 
+        let metrics = this.context.measureText(text);
+
+        console.log(metrics);
+
+        return {
+            width: metrics.width * this._fontSize,
+            baseline: -metrics.alphabeticBaseline *  this._fontSize,
+            height: (metrics.fontBoundingBoxDescent) *  this._fontSize,
+        }
     }
 
     // Returns the size of a pixel in viewport units
@@ -288,6 +333,37 @@ export class Graphics2D {
     drawImage(image: UseableImage, x: number, y: number, w: number, h: number): void;
     drawImage(image: UseableImage, x: number, y: number, w?: number, h?: number): void{
         this.context.drawImage(image, x, y, w ?? image.width, h ?? image.height);
+    }
+
+    drawText(text: string, x: number, y: number) {
+        this.context.save();
+
+        this.context.translate(x, y);
+
+        let result = this.measureText(text);
+        
+        if(this._textHorizontalAlignment == TextHorizontalAlignment.Center){
+            this.context.translate(-result.width / 2, 0);
+        }
+        else if(this._textHorizontalAlignment == TextHorizontalAlignment.Right){
+            this.context.translate(-result.width, 0);
+        }
+        
+        if(this._textVerticalAlignment == TextVerticalAlignment.Center){
+            this.context.translate(0, -result.height / 2);
+        }
+        else if(this._textVerticalAlignment == TextVerticalAlignment.Baseline){
+            this.context.translate(0, -result.baseline);
+        }
+        else if(this._textVerticalAlignment == TextVerticalAlignment.Bottom){
+            this.context.translate(0, -result.height);
+        }
+
+        this.context.scale(this._fontSize, this._fontSize);
+
+        this.context.fillText(text, 0, 0);
+
+        this.context.restore();
     }
 
     // ======================================================= //
