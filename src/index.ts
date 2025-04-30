@@ -10,6 +10,8 @@ import { Rect2 } from "./math/Rect2";
 import { Vector2 } from "./math/Vector2";
 import { DocumentSettings, DocumentUnits } from "./settings/DocumentSettings";
 import { ViewportFit, ViewportSettings } from "./settings/ViewportSettings";
+import { Sprite } from "./graphics/Sprite";
+import { NineSideSprite } from "./graphics/NineSideSprite";
 
 export {
     Graphics2D,
@@ -21,6 +23,9 @@ export {
     
     TextHorizontalAlignment, 
     TextVerticalAlignment,
+
+    Sprite,
+    NineSideSprite,
     
     BezierCurve,
     Vector2,

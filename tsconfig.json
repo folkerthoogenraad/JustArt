@@ -7,7 +7,9 @@
     "strict": true,
     "skipLibCheck": true,
     "noUncheckedIndexedAccess": false,
-    "noEmit": true
+    "noEmit": true,
+    "strictBindCallApply": true,
+    "strictNullChecks": true
   },
   "exclude": [
     "node_modules",

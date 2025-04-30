@@ -3,6 +3,8 @@
 import { DocumentSettings, DocumentUnits } from "../settings/DocumentSettings";
 import { ViewportFit, ViewportSettings } from "../settings/ViewportSettings";
 import { Color } from "./Color";
+import { NineSideSprite } from "./NineSideSprite";
+import { Sprite } from "./Sprite";
 import { TextHorizontalAlignment, TextMeasurement, TextVerticalAlignment } from "./TextAlignment";
 
 function generateDocumentSettingsFromCanvas(canvas: UseableCanvas){
@@ -80,7 +82,11 @@ export class Graphics2D {
         window.addEventListener("resize", () => {
             if(this.canvasAsDocument){
                 this.setDocumentSettings(generateDocumentSettingsFromCanvas(this.canvas));
+                this.setViewportSettings(generateViewportSettingsFromCanvas(this.canvas));
             }
+
+            this.context.imageSmoothingEnabled = this.imageSmoothingEnabled;
+            this.setFont(this._font);
         });
 
         this.context.lineCap = "round";
@@ -187,8 +193,6 @@ export class Graphics2D {
     }
     measureText(text: string): TextMeasurement{ 
         let metrics = this.context.measureText(text);
-
-        console.log(metrics);
 
         return {
             width: metrics.width * this._fontSize,
@@ -364,6 +368,76 @@ export class Graphics2D {
         this.context.fillText(text, 0, 0);
 
         this.context.restore();
+    }
+
+    drawSprite(sprite: Sprite, x: number, y: number, angle: number) {
+        if(!sprite.isLoaded) {
+            return;
+        }
+
+        this.context.save();
+        this.context.translate(x, y);
+        this.context.rotate(angle);
+
+        this.context.drawImage(sprite.image, sprite.sourceX, sprite.sourceY, sprite.sourceWidth, sprite.sourceHeight, -sprite.originX, -sprite.originY, sprite.width, sprite.height);
+
+        this.context.restore();
+    }
+
+    drawNineSideSprite(sprite: NineSideSprite, x: number, y: number, width: number, height: number) {
+        if(!sprite.isLoaded) {
+            return;
+        }
+
+        // x = Math.round(x);
+        // y = Math.round(y);
+        // width = Math.round(width);
+        // height = Math.round(height);
+
+        // Corner top left
+        this.context.drawImage(sprite.image, 
+            sprite.sourceX, sprite.sourceY, sprite.leftEdge, sprite.topEdge, 
+            x, y, sprite.leftEdge, sprite.topEdge);
+
+        // Corner top right
+        this.context.drawImage(sprite.image, 
+            sprite.sourceX + sprite.sourceWidth - sprite.rightEdge, sprite.sourceY, sprite.rightEdge, sprite.topEdge, 
+            x + width - sprite.rightEdge, y, sprite.leftEdge, sprite.topEdge);
+
+        // Corner bottom left
+        this.context.drawImage(sprite.image, 
+            sprite.sourceX, sprite.sourceY + sprite.sourceWidth - sprite.bottomEdge, sprite.leftEdge, sprite.bottomEdge,
+            x, y + height - sprite.bottomEdge, sprite.leftEdge, sprite.bottomEdge);
+
+        // Corner bottom right
+        this.context.drawImage(sprite.image, 
+            sprite.sourceX + sprite.sourceWidth - sprite.rightEdge, sprite.sourceY + sprite.sourceWidth - sprite.bottomEdge, sprite.rightEdge, sprite.bottomEdge,
+            x + width - sprite.rightEdge, y + height - sprite.bottomEdge, sprite.leftEdge, sprite.bottomEdge);
+
+        // Edge left
+        this.context.drawImage(sprite.image, 
+            sprite.sourceX, sprite.sourceY + sprite.topEdge, sprite.leftEdge, sprite.height - sprite.bottomEdge - sprite.topEdge, 
+            x, y + sprite.topEdge, sprite.leftEdge, height - sprite.bottomEdge - sprite.topEdge);
+            
+        // Edge right
+        this.context.drawImage(sprite.image, 
+            sprite.sourceX + sprite.sourceWidth - sprite.rightEdge, sprite.sourceY + sprite.topEdge, sprite.rightEdge, sprite.height - sprite.bottomEdge - sprite.topEdge, 
+            x + width - sprite.rightEdge, y + sprite.topEdge, sprite.leftEdge, height - sprite.bottomEdge - sprite.topEdge);
+
+        // Edge top
+        this.context.drawImage(sprite.image, 
+            sprite.sourceX + sprite.leftEdge, sprite.sourceY, sprite.sourceWidth - sprite.leftEdge - sprite.rightEdge, sprite.topEdge, 
+            x + sprite.leftEdge, y, width - sprite.leftEdge - sprite.rightEdge, sprite.topEdge);
+            
+        // Edge bottom
+        this.context.drawImage(sprite.image, 
+            sprite.sourceX + sprite.leftEdge, sprite.sourceY + sprite.sourceHeight - sprite.bottomEdge, sprite.sourceWidth - sprite.leftEdge - sprite.rightEdge, sprite.bottomEdge, 
+            x + sprite.leftEdge, y + height - sprite.bottomEdge, width - sprite.leftEdge - sprite.rightEdge, sprite.topEdge);
+
+        // Center
+        this.context.drawImage(sprite.image, 
+            sprite.sourceX + sprite.leftEdge, sprite.sourceY + sprite.topEdge, sprite.sourceWidth - sprite.rightEdge - sprite.leftEdge, sprite.sourceHeight - sprite.bottomEdge - sprite.topEdge, 
+            x + sprite.leftEdge, y + sprite.topEdge, width - sprite.rightEdge - sprite.leftEdge, height - sprite.bottomEdge - sprite.topEdge);
     }
 
     // ======================================================= //
