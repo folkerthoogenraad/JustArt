@@ -11,6 +11,7 @@ import { Vector2 } from "./math/Vector2";
 import { DocumentSettings, DocumentUnits } from "./settings/DocumentSettings";
 import { ViewportFit, ViewportSettings } from "./settings/ViewportSettings";
 import { Sprite } from "./graphics/Sprite";
+import { ImageLoader } from "./loader/ImageLoader";
 import { NineSideSprite } from "./graphics/NineSideSprite";
 
 export {
@@ -36,4 +37,6 @@ export {
     InterpolationCurve,
     InterpolationCurves,
     SampledInterpolationCurve,
+
+    ImageLoader,
 }

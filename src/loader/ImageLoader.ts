@@ -20,6 +20,16 @@ export class ImageLoader {
         });
     }
 
+    static waitForLoad(image: HTMLImageElement): Promise<void> {
+        return new Promise((resolve, reject) => {
+            if(image.complete){
+                resolve();
+            }
+
+            image.onload = () => resolve();
+        });
+    }
+
     static getImageFromCanvas(canvas: HTMLCanvasElement): Promise<HTMLImageElement>{
         return this.getImageFromURL(canvas.toDataURL());
     }

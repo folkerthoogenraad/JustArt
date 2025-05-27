@@ -1,12 +1,4 @@
-function _waitForLoad(image: HTMLImageElement): Promise<void> {
-    return new Promise((resolve, reject) => {
-        if(image.complete){
-            resolve();
-        }
-
-        image.onload = () => resolve();
-    });
-}
+import { ImageLoader } from "../loader/ImageLoader";
 
 export class NineSideSprite {
     image: HTMLImageElement;
@@ -101,7 +93,7 @@ export class NineSideSprite {
     }
 
     async waitForLoad(): Promise<this> {
-        await _waitForLoad(this.image);
+        await ImageLoader.waitForLoad(this.image);
 
         return this;
     }
