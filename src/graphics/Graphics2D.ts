@@ -173,6 +173,9 @@ export class Graphics2D {
     setLineWidth(width: number){
         this.context.lineWidth = width;
     }
+    getLineWidth() {
+        return this.context.lineWidth;
+    }
     setFont(font: string){
         this._font = font;
         this.context.font = `1px ${this._font}`;
