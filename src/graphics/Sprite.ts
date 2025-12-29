@@ -1,5 +1,8 @@
 import { ImageLoader } from "../loader/ImageLoader";
 
+// This class should probably be removed or whatever. It's too specific for the implementation.
+// It's great for rapid prototyping but doesn't allow much flexibility in implementation, which
+// is a problem for bigger applications with slightly different needs.
 export class Sprite {
     image: HTMLImageElement;
 

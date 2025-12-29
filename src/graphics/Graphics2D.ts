@@ -39,6 +39,7 @@ export interface Graphics2DSettings {
     canvas: UseableCanvas;
     
     canvasAsDocument?: boolean;
+    canvasAsViewport?: boolean;
     documentSettings?: DocumentSettings;
     viewportSettings?: ViewportSettings;
 
@@ -50,6 +51,7 @@ export class Graphics2D {
     readonly context: UseableContext;
 
     private canvasAsDocument: boolean;
+    private canvasAsViewport: boolean;
     private imageSmoothingEnabled: boolean;
     private _documentSettings: DocumentSettings;
     private _viewportSettings: ViewportSettings;
@@ -69,6 +71,7 @@ export class Graphics2D {
 
         this.imageSmoothingEnabled = settings.imageSmoothingEnabled ?? false;
         this.canvasAsDocument = settings.canvasAsDocument ?? (settings.documentSettings === undefined);
+        this.canvasAsViewport = settings.canvasAsViewport ?? false;
 
         this.context = context as CanvasRenderingContext2D;
 
@@ -82,6 +85,9 @@ export class Graphics2D {
         window.addEventListener("resize", () => {
             if(this.canvasAsDocument){
                 this.setDocumentSettings(generateDocumentSettingsFromCanvas(this.canvas));
+            }
+
+            if(this.canvasAsViewport){
                 this.setViewportSettings(generateViewportSettingsFromCanvas(this.canvas));
             }
 
@@ -336,10 +342,51 @@ export class Graphics2D {
         }
     }
 
+    drawTransformedRectangle(x: number, y: number, width: number, height: number, originX: number, originY: number, scaleX: number, scaleY: number, angle: number, fill: boolean) {
+        this.context.save();
+
+        this.context.translate(x, y);
+        this.context.rotate(angle);
+        this.context.scale(scaleX, scaleY);
+        
+        this.context.beginPath();
+
+        this.context.moveTo(-originX, -originY);
+        this.context.lineTo(-originX + width, -originY);
+        this.context.lineTo(-originX + width, -originY + height);
+        this.context.lineTo(-originX, -originY + height);
+        
+        this.context.closePath();
+
+        if(fill){
+            this.context.fill();
+        }
+        else{
+            this.context.stroke();
+        }
+        
+        this.context.restore();
+    }
+
     drawImage(image: UseableImage, x: number, y: number): void;
     drawImage(image: UseableImage, x: number, y: number, w: number, h: number): void;
     drawImage(image: UseableImage, x: number, y: number, w?: number, h?: number): void{
         this.context.drawImage(image, x, y, w ?? image.width, h ?? image.height);
+    }
+    
+    drawImageRegion(image: UseableImage, sourceX: number, sourceY: number, sourceWidth: number, sourceHeight: number, originX: number, originY: number, x: number, y: number, width: number, height: number, angle: number) {
+        if(angle === 0) {
+            this.context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, x - originX, y - originY, width, height);
+        }
+        else {
+            this.context.save();
+            this.context.translate(x, y);
+            this.context.rotate(angle);
+    
+            this.context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, -originX, -originY, width, height);
+    
+            this.context.restore();
+        }
     }
 
     drawText(text: string, x: number, y: number) {
@@ -373,18 +420,34 @@ export class Graphics2D {
         this.context.restore();
     }
 
-    drawSprite(sprite: Sprite, x: number, y: number, angle: number) {
+    drawSprite(sprite: Sprite, x: number, y: number): void;
+    drawSprite(sprite: Sprite, x: number, y: number, angle: number): void;
+    drawSprite(sprite: Sprite, x: number, y: number, scaleX: number, scaleY: number): void;
+    drawSprite(sprite: Sprite, x: number, y: number, scaleX: number, scaleY: number, angle: number): void;
+    drawSprite(sprite: Sprite, x: number, y: number, scaleX?: number, scaleY?: number, angle?: number): void {
+        let sx = 1;
+        let sy = 1;
+        let a = 0;
+
+        // drawSprite(sprite: Sprite, x: number, y: number, angle: number): void;
+        if (scaleX !== undefined && scaleY === undefined) {
+            a = scaleX;
+        } 
+        
+        // drawSprite(sprite: Sprite, x: number, y: number, scaleX: number, scaleY: number): void;
+        else if (scaleX !== undefined && scaleY !== undefined) {
+            sx = scaleX;
+            sy = scaleY;
+
+            // drawSprite(sprite: Sprite, x: number, y: number, scaleX?: number, scaleY?: number, angle?: number): void 
+            if (angle !== undefined) a = angle;
+        }
+
         if(!sprite.isLoaded) {
             return;
         }
 
-        this.context.save();
-        this.context.translate(x, y);
-        this.context.rotate(angle);
-
-        this.context.drawImage(sprite.image, sprite.sourceX, sprite.sourceY, sprite.sourceWidth, sprite.sourceHeight, -sprite.originX, -sprite.originY, sprite.width, sprite.height);
-
-        this.context.restore();
+        this.drawImageRegion(sprite.image, sprite.sourceX, sprite.sourceY, sprite.sourceWidth, sprite.sourceHeight, sprite.originX * sx, sprite.originY * sy, x, y, sprite.width * sx, sprite.height * sy, a);
     }
 
     drawNineSideSprite(sprite: NineSideSprite, x: number, y: number, width: number, height: number) {

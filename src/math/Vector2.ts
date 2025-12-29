@@ -187,8 +187,11 @@ export class Vector2 {
     static angled(angle: number) {
         return new Vector2(Math.cos(angle), Math.sin(angle));
     }
-    
 
+    static angleBetween(a: Vector2, b: Vector2) {
+        return Math.atan2(a.x * b.y - a.y * b.x, a.x * b.x + a.y * b.y);
+    }
+    
     // ============================================================== //
     // Helper functions to work without the Vector2 class
     // ============================================================== //

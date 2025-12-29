@@ -73,6 +73,8 @@ npm install
 npm run build
 ```
 
+If you want to update this project, while using it from another project, you can use `npm run watch` to keep a live build running at all times. This way, the project gets updated in all the spots you want.
+
 Then, in your own project you can install this using `npm install --save ../JustArt` to install this local package. Ofcourse, the path to the `JustArt` root can be altered if you put it in a different folder.
 
 ## Credits
