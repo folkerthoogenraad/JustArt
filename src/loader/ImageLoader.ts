@@ -1,5 +1,5 @@
 import { Color } from "../graphics/Color";
-import { ImageGrid } from "../pixels/ImageGrid";
+import { ColorImage, ImageGrid } from "../pixels/ImageGrid";
 import { Sampler } from "../pixels/Sampler";
 
 type UsableImage = HTMLVideoElement | HTMLImageElement | HTMLCanvasElement | ImageBitmap | OffscreenCanvas;
@@ -60,6 +60,13 @@ export class ImageLoader {
         context.putImageData(data, 0, 0);
 
         return canvas;
+    }
+    
+    static getImageDataUrlFromImageGrid(imageGrid: ImageGrid<Color>): string {
+        let data = this.getImageDataFromImageGrid(imageGrid);
+        let canvas = this.getCanvasFromImageData(data);
+        
+        return canvas.toDataURL();
     }
 
     static getImageGridFromImage(image: UsableImage): ImageGrid<Color>{

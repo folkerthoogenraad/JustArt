@@ -8,11 +8,13 @@ import { Matrix2 } from "./math/Matrix2";
 import { Polygon2 } from "./math/Polygon2";
 import { Rect2 } from "./math/Rect2";
 import { Vector2 } from "./math/Vector2";
+import { Vector3 } from "./math/Vector3";
 import { DocumentSettings, DocumentUnits } from "./settings/DocumentSettings";
 import { ViewportFit, ViewportSettings } from "./settings/ViewportSettings";
 import { Sprite } from "./graphics/Sprite";
 import { ImageLoader } from "./loader/ImageLoader";
 import { NineSideSprite } from "./graphics/NineSideSprite";
+import { ImageGrid, EdgeBehaviour } from "./pixels/ImageGrid";
 
 export {
     Graphics2D,
@@ -30,6 +32,7 @@ export {
     
     BezierCurve,
     Vector2,
+    Vector3,
     Rect2,
     Polygon2,
     Matrix2,
@@ -39,4 +42,6 @@ export {
     SampledInterpolationCurve,
 
     ImageLoader,
+    ImageGrid,
+    EdgeBehaviour
 }
