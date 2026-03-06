@@ -99,7 +99,7 @@ export class ImageLoader {
     }
 
     static getImageDataFromImageGrid(image: ImageGrid<Color>): ImageData {
-        let data = new ImageData(image.width, image.height, {colorSpace: "srgb"});
+        let data = new ImageData(image.width, image.height); // {colorSpace: "srgb"}
     
         image.foreachPixel((color, x, y) => {
             let index = y * image.width * 4 + x * 4;

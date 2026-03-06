@@ -15,6 +15,9 @@ import { Sprite } from "./graphics/Sprite";
 import { ImageLoader } from "./loader/ImageLoader";
 import { NineSideSprite } from "./graphics/NineSideSprite";
 import { ImageGrid, EdgeBehaviour } from "./pixels/ImageGrid";
+import { Ray2 } from "./math/Ray2";
+import { Line2 } from "./math/Line2";
+import { RingBuffer } from "./math/RingBuffer";
 
 export {
     Graphics2D,
@@ -34,12 +37,16 @@ export {
     Vector2,
     Vector3,
     Rect2,
+    Ray2,
+    Line2,
     Polygon2,
     Matrix2,
     MathHelper,
     InterpolationCurve,
     InterpolationCurves,
     SampledInterpolationCurve,
+
+    RingBuffer,
 
     ImageLoader,
     ImageGrid,
