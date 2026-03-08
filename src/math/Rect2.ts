@@ -13,6 +13,8 @@ export class Rect2 {
     get y() { return this.position.y; }
     get width() { return this.size.x; }
     get height() { return this.size.y; }
+    get centerX() { return this.position.x + this.size.x * 0.5; }
+    get centerY() { return this.position.y + this.size.y * 0.5; }
 
     get left() { return this.position.x; }
     get right() { return this.position.x + this.size.x; }

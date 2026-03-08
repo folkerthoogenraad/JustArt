@@ -18,6 +18,7 @@ import { ImageGrid, EdgeBehaviour } from "./pixels/ImageGrid";
 import { Ray2 } from "./math/Ray2";
 import { Line2 } from "./math/Line2";
 import { RingBuffer } from "./math/RingBuffer";
+import { EditorGraphics2D } from "./graphics/EditorGraphics2D";
 
 export {
     Graphics2D,
@@ -48,7 +49,10 @@ export {
 
     RingBuffer,
 
+    
     ImageLoader,
     ImageGrid,
-    EdgeBehaviour
+    EdgeBehaviour,
+    
+    EditorGraphics2D,
 }

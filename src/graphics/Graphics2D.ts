@@ -566,6 +566,12 @@ export class Graphics2D {
    
         return transform.transformPoint({x, y});
     }
+    documentToViewportX(x: number) {
+        return x / this.documentSettings.width * this.viewportSettings.width + this.viewportSettings.minX;
+    }
+    documentToViewportY(y: number) {
+        return y / this.documentSettings.height * this.viewportSettings.height + this.viewportSettings.minY;
+    }
 
     // ======================================================= //
     // Getters
@@ -582,6 +588,7 @@ export class Graphics2D {
     get documentSettings(){
         return this._documentSettings;
     }
+    /** @deprecated Use the getDocumentRectangle to get the full document rectangle or get the viewport rect from the viewport itself. */
     getViewportRectangle(){
         return this.viewportSettings.getViewportBounds();
     }
